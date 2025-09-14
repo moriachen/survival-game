@@ -646,7 +646,7 @@ function hunt(){
     const forage = ['wild_veg','wild_berry','herb_basil','herb_mint'];
     const pickN = 1 + Math.floor(Math.random()*2);
     for(let i=0;i<pickN;i++){ const k = forage[Math.floor(Math.random()*forage.length)]; S.inventory[k]=(S.inventory[k]||0)+1; S.usedSlots+=1; }
-    showMsg('打猎成功','获得生鹿肉 ×'+cuts+'（解锁烤鹿肉），另得餐数 +'+gain+'，并采摘了一些野味香草。');
+    showMsg('打猎成功','获得生鹿肉 ×'+cuts+'（解锁烤鹿肉），另得餐数 +'+gain+'，并采摘了一些野果。');
     addLog(`打猎成功：生鹿肉 +${cuts} · 餐数 +${gain} · 精神 +3 · 采摘 +${pickN}`);
   } else { 
     S.risk = Math.min(100, S.risk + 5);
