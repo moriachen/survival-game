@@ -240,12 +240,11 @@ let S = JSON.parse(localStorage.getItem(LS_KEY)) || initState();
 
 // ======== 工具 ========
 function save(){ localStorage.setItem(LS_KEY, JSON.stringify(S)); }
-function ts(){
-  const d = curDayAdj();
-  const h = hourMod();
-  return `Day ${d} ${h.toString().padStart(2,'0')}:00`;
-}
-
+function ts(){ 
+  const d = curDayAdj(); 
+  const h = hourMod(); 
+  return `Day ${d} ${h.toString().padStart(2,'0')}:00`; 
+}); }
 function fmt(n){ return (n||0).toLocaleString(); }
 function addLog(msg){ S.log.unshift({t:ts(), msg}); if(S.log.length>120) S.log.pop(); }
 function hourMod(){ return ((S.hour%24)+24)%24; }
@@ -470,6 +469,7 @@ function renderKitchen(box){
     </div>
   `;
 }
+
 function cook(id){
   const r = RECIPES.find(x=>x.id===id); if(!r) return; if(S.meals < r.mealCost) return alert('餐数不足');
   let usedFuel = false;
@@ -481,12 +481,19 @@ function cook(id){
       else return alert('需要丙烷或汽油');
     }
   }
-  S.meals -= r.mealCost; let moodGain=r.mood;
+  S.meals -= r.mealCost; 
+  let moodGain=r.mood;
   if(S.team.find(t=>t.type==='chef')) moodGain = Math.round(moodGain*1.1);
   S.mood = Math.min(100, S.mood + moodGain);
-  addLog(`烹饪完成：${r.name}（精神 +${moodGain}${usedFuel?' · 消耗燃料':''}）`);
+
+  // 吃饭恢复体力
+  let staGain = 10;
+  S.stamina = Math.min(100, S.stamina + staGain);
+
+  addLog(`烹饪完成：${r.name}（精神 +${moodGain} · 体力 +${staGain}${usedFuel?' · 消耗燃料':''}）`);
   save(); render();
 }
+
 
 // ======== 活动 ========
 
@@ -642,7 +649,7 @@ function sleepNow(){
   let needWater = 3 + S.team.length*0.5;
   let ate = false;
 
-  if(S.meals>=needMeals){ S.meals -= needMeals; ate = true; } 
+  if(S.meals>=needMeals){ S.meals -= needMeals; ate = true; S.stamina = Math.min(100, S.stamina + 15); addLog('进食：体力 +15'); } 
   else { S.stamina = Math.max(0, S.stamina - 10); addLog('饥饿影响体力 -10'); moodDrop += 5; }
 
   if(S.waterL>=needWater){ S.waterL -= needWater; } 
