@@ -54,6 +54,8 @@
     dialog{border:none;border-radius:16px;background:#0f1622;color:#fff;padding:18px;max-width:420px}
     dialog::backdrop{background:rgba(0,0,0,.55)}
   button[disabled]{opacity:.55; cursor:not-allowed; filter:grayscale(0.2);} 
+html,body{-webkit-text-size-adjust:100%;} button,.btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;} .tab,.pill,button{cursor:pointer;}
+#overlay,.overlay,.modalMask{pointer-events:none;} #overlay.show,.overlay.show,.modalMask.show{pointer-events:auto;}
 </style>
 </head>
 <body>
@@ -85,7 +87,7 @@
 <!-- 开局宠物选择 -->
 <dialog id="petDlg">
   <h3>选择你的宠物</h3>
-  <p class="muted">你自带一只宠物。请在猫与狗中选择其一。后续需要在超市购买相应的宠物粮。</p>
+  <p class="muted">你不会去宠物店；你自带一只宠物。请在猫与狗中选择其一。后续需要在超市购买相应的宠物粮。</p>
   <div class="row">
     <button class="btn" id="chooseDog">🐕 选择小狗</button>
     <button class="btn" id="chooseCat">🐈 选择小猫</button>
@@ -98,6 +100,79 @@
   <div class="row"><button class="btn" onclick="document.getElementById('popDlg').close()">好的</button></div>
 </dialog>
 
+
+<script>
+
+// ==== Diagnostics ====
+(function(){
+  // Query param parser
+  function getQueryParam(name){
+    try{
+      const params = new URLSearchParams(location.search);
+      return params.get(name);
+    }catch(e){ return null; }
+  }
+  // Memory-only override
+  const mem = getQueryParam('mem');
+  if(mem==='1'){
+    window._memStore = window._memStore || {};
+    window.SafeStorage = {
+      getItem(k){ return window._memStore[k] || null; },
+      setItem(k,v){ window._memStore[k] = v; }
+    };
+    console.warn('[Diag] Forced memory-only storage (?mem=1)');
+  }
+
+  // Error banner
+  const bar = document.createElement('div');
+  bar.id = 'diagBar';
+  bar.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;background:rgba(0,0,0,.7);color:#fff;padding:8px 10px;border-radius:10px;font:12px/1.2 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto;z-index:99999;max-width: calc(100vw - 16px);word-break:break-word;display:none;';
+  document.addEventListener('DOMContentLoaded', ()=>document.body.appendChild(bar));
+  function show(msg){
+    bar.textContent = msg;
+    bar.style.display = 'block';
+    clearTimeout(bar._t);
+    bar._t = setTimeout(()=>{ bar.style.display='none'; }, 8000);
+  }
+  window.onerror = function(msg, src, line, col, err){
+    const m = '[Error] '+msg+' @'+(src||'')+':'+(line||0)+':'+(col||0);
+    console.error(m, err);
+    try{ show(m); }catch(e){}
+  };
+  window.addEventListener('unhandledrejection', e=>{
+    const m = '[PromiseRejection] '+(e.reason && e.reason.message || String(e.reason||''));
+    console.error(m, e.reason);
+    try{ show(m); }catch(ex){}
+  });
+
+  // Footer badge with env info
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const info = document.createElement('div');
+    info.style.cssText = 'position:fixed;right:8px;bottom:8px;font-size:10px;color:#9aa0a6;z-index:99998;';
+    const mode = (function(){ try{localStorage.setItem('__t','1'); localStorage.removeItem('__t'); return 'localStorage';}catch(e){ return 'memory-fallback'; } })();
+    info.textContent = 'UA:iOS? '+(/iPad|iPhone|iPod/.test(navigator.userAgent))+ ' · storage:'+mode + (mem==='1'?'(forced-mem)':'');
+    document.body.appendChild(info);
+  });
+})();
+
+window.addEventListener('touchstart', function(){}, {passive:true});
+
+// —— Mobile storage compatibility ——
+// Some mobile browsers (e.g., iOS Safari Private Mode) throw on localStorage access.
+// We wrap get/set in try/catch and fallback to in-memory storage.
+window._memStore = window._memStore || {};
+console.info('Storage mode: '+((()=>{try{return (localStorage? 'localStorage':'?');}catch(e){return 'memory-fallback';}})()));
+const SafeStorage = {
+  getItem(k){
+    try{ return window.localStorage.getItem(k); }
+    catch(e){ return window._memStore[k] || null; }
+  },
+  setItem(k,v){
+    try{ window.localStorage.setItem(k,v); }
+    catch(e){ window._memStore[k] = v; }
+  }
+};
+</script>
 <script>
 const LS_KEY = 'survival_web_v5_petfood';
 
@@ -247,14 +322,14 @@ function initState(){
     garden:{plots:0, skill:false, progress:0},
     wep:{melee:false, handgun:false, rifle:false, ammo9:0, ammo556:0},
     news: '城市暂时平静，只有少数人察觉到异常。',
-    log:[{t:ts(), msg:'你是苦逼的美国留学生。重生至末日前第3天，航班封锁，需用 1 万美元完成采购与布置。'}]
+    log:[{t:ts(), msg:'你是美国留学生。重生至末日前第3天，航班封锁，需用 3 万美元完成采购与布置。'}]
   }
 }
 
-let S = JSON.parse(localStorage.getItem(LS_KEY)) || initState();
+let S = null; try{ S = JSON.parse(SafeStorage.getItem(LS_KEY)); }catch(e){ S = null; } if(!S) S = initState();
 
 // ======== 工具 ========
-function save(){ localStorage.setItem(LS_KEY, JSON.stringify(S)); }
+function save(){ try{ SafeStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){ console.warn('Storage unavailable; running memory-only.'); } }
 function ts(){ 
   const d = curDayAdj(); 
   const h = hourMod(); 
@@ -613,6 +688,7 @@ function renderActions(box){
   </div>
 </div>
 
+        <button class="btn small" onclick="study('book_garden')">学习园艺 2h</button>
       </div>
       <div class="card">
         <h3>🛡️ 训练（安全）</h3>
