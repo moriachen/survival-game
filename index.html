@@ -256,7 +256,7 @@ function ts(){
   const d = curDayAdj(); 
   const h = hourMod(); 
   return `Day ${d} ${h.toString().padStart(2,'0')}:00`; 
-}); }
+}
 function fmt(n){ return (n||0).toLocaleString(); }
 function addLog(msg){ S.log.unshift({t:ts(), msg}); if(S.log.length>120) S.log.pop(); }
 function showMsg(title, text){ const d=document.getElementById('popDlg'); if(!d) return alert(text); document.getElementById('popTitle').textContent=title; document.getElementById('popText').textContent=text; d.showModal(); }
