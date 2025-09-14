@@ -53,7 +53,8 @@
     .notice{border-left:4px solid var(--accent);padding-left:10px}
     dialog{border:none;border-radius:16px;background:#0f1622;color:#fff;padding:18px;max-width:420px}
     dialog::backdrop{background:rgba(0,0,0,.55)}
-  </style>
+  button[disabled]{opacity:.55; cursor:not-allowed; filter:grayscale(0.2);} 
+</style>
 </head>
 <body>
 <div class="wrap">
@@ -592,10 +593,26 @@ function renderActions(box){
         <div>地块：${S.garden.plots} · 进度：${S.garden.progress}% · 技能：${S.garden.skill?'已学':'未学'}</div>
         <div class="row"><button class="btn small" onclick="setupGarden()">开垦地块(2h)</button><button class="btn small" onclick="tendGarden()">照料浇灌(2h)</button><button class="btn small" onclick="harvest()">收获</button></div>
       </div>
-      <div class="card">
-        <h3>📚 学习</h3>
-        <div class="muted">阅读《家庭园艺入门》可提升种田存活率；2h 学习 1 次。</div>
-        <button class="btn small" onclick="study('book_garden')">学习园艺 2h</button>
+      
+<div class="card">
+  <h3>📚 学习</h3>
+  <div class="muted">每学习 2 小时：技能掌握 +10%，相关行动成功率 +20%。需持有对应书籍。</div>
+  <div class="row" style="gap:8px;margin-top:8px">
+    <button class="btn small" onclick="study('book_garden')" ${ (S.mastery?.garden||0) >= 100 ? 'disabled' : '' }>
+      《家庭园艺入门》2h · 掌握 ${ (S.mastery?.garden||0) }%${ (S.mastery?.garden||0) >= 100 ? ' · 已满级' : '' }
+    </button>
+    <button class="btn small" onclick="study('book_gen')" ${ (S.mastery?.generator||0) >= 100 ? 'disabled' : '' }>
+      《发电机维护》2h · 掌握 ${ (S.mastery?.generator||0) }%${ (S.mastery?.generator||0) >= 100 ? ' · 已满级' : '' }
+    </button>
+    <button class="btn small" onclick="study('book_firstaid')" ${ (S.mastery?.firstaid||0) >= 100 ? 'disabled' : '' }>
+      《急救手册》2h · 掌握 ${ (S.mastery?.firstaid||0) }%${ (S.mastery?.firstaid||0) >= 100 ? ' · 已满级' : '' }
+    </button>
+    <button class="btn small" onclick="study('book_repair')" ${ (S.mastery?.repair||0) >= 100 ? 'disabled' : '' }>
+      《居家修补指南》2h · 掌握 ${ (S.mastery?.repair||0) }%${ (S.mastery?.repair||0) >= 100 ? ' · 已满级' : '' }
+    </button>
+  </div>
+</div>
+
       </div>
       <div class="card">
         <h3>🛡️ 训练（安全）</h3>
@@ -683,7 +700,32 @@ function goFish(){ if(guardIndoorOnly()) return; if(S.baseType!=='lake') return 
 function setupGarden(){ if(guardIndoorOnly()) return; if(!(S.inventory.seeds>0)) return alert('缺少种子'); if(!needHours(2, +2)) return; S.garden.plots+=1; S.inventory.seeds--; S.usedSlots-=shopItemSlot('seeds'); addLog('开垦 1 个地块。'); checkOutdoorAttack('开垦地块'); save(); render(); }
 function tendGarden(){ if(guardIndoorOnly()) return; if(S.garden.plots<=0) return alert('没有地块'); if(S.waterL<1) return alert('需要至少 1L 水'); if(!needHours(2, +1)) return; const eff = S.garden.skill? 20:10; S.garden.progress=Math.min(100,S.garden.progress+eff); S.waterL-=1; addLog(`照料菜地，进度 +${eff}%。`); checkOutdoorAttack('照料菜地'); save(); render(); }
 function harvest(){ if(guardIndoorOnly()) return; if(S.garden.progress<100) return alert('还未成熟'); const gain= S.garden.plots * (S.garden.skill? 10:7); S.meals+=gain; S.garden.progress=0; addLog(`收获蔬菜：+${gain} 餐。`); checkOutdoorAttack('收获'); save(); render(); }
-function study(bookId){ if(!(S.inventory[bookId]>0)) return alert('缺少书籍'); if(!needHours(2, 0)) return; if(bookId==='book_garden') { S.garden.skill=true; addLog('学习园艺完成，耕作效率提升。'); } if(bookId==='book_repair'){ S.skills.repair=true; addLog('学习修补完成：掌握围栏修复技巧。'); } save(); render(); }
+
+function study(bookId){
+  if(!S.mastery){ S.mastery={garden:0,generator:0,firstaid:0,repair:0}; }
+  const map = {
+    'book_garden': {key:'garden', name:'家庭园艺入门'},
+    'book_gen': {key:'generator', name:'发电机维护'},
+    'book_firstaid': {key:'firstaid', name:'急救手册'},
+    'book_repair': {key:'repair', name:'居家修补指南'}
+  };
+  const conf = map[bookId];
+  if(!conf) return;
+  const cur = (S.mastery[conf.key]||0);
+  if(cur >= 100){
+    addLog('《'+conf.name+'》已满级（100%），无需继续学习。');
+    render();
+    return;
+  }
+  if(!(S.inventory && S.inventory[bookId]>0)) return alert('缺少书籍：《'+conf.name+'》');
+  if(!needHours(2, 0)) return;
+  S.mastery[conf.key] = Math.min(100, cur + 10);
+  if(conf.key==='garden' && S.mastery.garden>=50){ S.garden.skill = true; }
+  if(conf.key==='repair' && S.mastery.repair>=50){ S.skills.repair = true; }
+  addLog('学习《'+conf.name+'》完成：技能掌握 +10%（现为 '+S.mastery[conf.key]+'%） · 相关行动成功率 +20%');
+  save();
+  render();
+}
 function train(){ if(!needHours(2, -5)) return; addLog('训练完成：风险 -5。'); save(); render(); }
 function scavenge(){ if(guardIndoorOnly()) return; if(!needHours(3, +12)) return; const roll=Math.random(); if(roll<0.25){ const gain= 1+Math.floor(Math.random()*3); S.meals+=gain; addLog(`找到废弃食品：+${gain} 餐。`);} else if(roll<0.45){ S.waterL+=3; addLog('找到瓶装水：+3L。'); } else if(roll<0.6){ S.gasGal+=2; addLog('在废弃加油站虹吸：汽油 +2gal。'); } else if(roll<0.75){ if(S.wep.melee||S.wep.handgun||S.wep.rifle){ addLog('遭遇劫匪但被你吓退。'); } else { addLog('遭遇劫匪，损失少量物资，精神 -5。'); S.mood=Math.max(0,S.mood-5); S.usedSlots=Math.max(0,S.usedSlots-2); } } else if(roll<0.9){ addLog('空无一物，白忙活一场。'); } else {
     addLog('丧尸围攻！你仓皇撤退，体力 -10，精神 -8。'); S.stamina=Math.max(0,S.stamina-10); S.mood=Math.max(0,S.mood-8);
@@ -871,8 +913,8 @@ function sleepNow(){
   if(S.waterL>=needWater){ S.waterL -= needWater; } 
   else { S.stamina = Math.max(0, S.stamina - 20); addLog('缺水影响体力 -20'); moodDrop += 5; }
 
-  // 饥饿值与饿死倒计时
-  if(ate){ S.hunger = Math.min(100, S.hunger + 10); } else { S.hunger = Math.max(0, S.hunger - 35); }
+  // 饱食度与饿死倒计时（睡觉不再增加饱食度；仅在未进食时下降）
+  if(!ate){ S.hunger = Math.max(0, S.hunger - 35); }
   if(S.hunger<=0){
     S.starveDays = (S.starveDays||0) + 1;
     addLog(`极度饥饿（第 ${S.starveDays}/3 天）`);
