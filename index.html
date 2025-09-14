@@ -91,6 +91,12 @@
   </div>
 </dialog>
 
+<dialog id="popDlg">
+  <h3 id="popTitle">提示</h3>
+  <div id="popText" class="muted" style="margin:8px 0 12px"></div>
+  <div class="row"><button class="btn" onclick="document.getElementById('popDlg').close()">好的</button></div>
+</dialog>
+
 <script>
 const LS_KEY = 'survival_web_v5_petfood';
 
@@ -158,7 +164,8 @@ const SHOPS = {
     {id:'handgun', name:'手枪（需合法许可）', price:400, unit:'把', slot:10},
     {id:'rifle', name:'步枪（需合法许可）', price:800, unit:'把', slot:15},
     {id:'ammo9', name:'9mm 弹药 ×50', price:30, unit:'盒', slot:2},
-    {id:'ammo556', name:'5.56 弹药 ×60', price:45, unit:'盒', slot:3}
+    {id:'ammo556', name:'5.56 弹药 ×60', price:45, unit:'盒', slot:3},
+    {id:'trap', name:'简易陷阱', price:35, unit:'只', slot:3}
   ]}
 };
 
@@ -171,6 +178,9 @@ const ITEM_EFFECTS = {
 
 // 菜谱（节选，保留可玩度）
 const RECIPES = [
+  {id:'grill_fish', name:'烤鱼', needAny:['fish_raw'], mealCost:0, mealsGain:2, mood:+10, energy:'cook', consume:['fish_raw']},
+  {id:'fish_soup', name:'鱼汤', needAny:['fish_raw','salt'], mealCost:0, mealsGain:2, mood:+8, energy:'cook', consume:['fish_raw']},
+  {id:'grill_venison', name:'烤鹿肉', needAny:['venison_raw'], mealCost:0, mealsGain:3, mood:+12, energy:'cook', consume:['venison_raw']},
   {id:'rice_plain', name:'白米饭', needAny:['rice50'], mealCost:1, mood:+2, energy:'any'},
   {id:'soup_veg', name:'蔬菜汤', needAny:['seeds','canned'], mealCost:1, mood:+3, energy:'any'},
   {id:'fried_rice', name:'蛋炒饭', needAny:['rice50','eggs60','oil5l'], mealCost:2, mood:+8, energy:'cook'},
@@ -178,7 +188,8 @@ const RECIPES = [
   {id:'stew_beef', name:'炖牛肉', needAny:['freezer_meat'], mealCost:3, mood:+15, energy:'cook'},
   {id:'bbq_pork', name:'红烧肉/烤肉', needAny:['freezer_meat','sugar'], mealCost:3, mood:+15, energy:'cook'},
   {id:'coffee', name:'咖啡', needAny:[], mealCost:0, mood:+10, energy:'any'},
-  {id:'pizza', name:'电烤披萨', needAny:['flour25','cheese2k'], mealCost:3, mood:+30, energy:'power'}
+  {id:'pizza', name:'电烤披萨', needAny:['flour25','cheese2k'], mealCost:3, mood:+30, energy:'power'},
+  {id:'salad_simple', name:'简易沙拉', needAny:['seeds'], mealCost:1, mood:+6, energy:'any'}
 ];
 
 const WORLD_NEWS = [
@@ -214,7 +225,7 @@ const EVENTS = [
 function initState(){
   return {
     day:-3, hour:8, hoursLeft:12,
-    money:30000, stamina:100, mood:100,
+    money:10000, stamina:100, mood:100,
     hunger:100,
     starveDays:0,
     allowOver:false,
@@ -229,6 +240,7 @@ function initState(){
     petFoodDays:{dog:0, cat:0},
     team:[],
     skills:{ electrician:false, pharmacist:false, guard:false },
+    unlocks:{ grill_fish:false, grill_venison:false },
     garden:{plots:0, skill:false, progress:0},
     wep:{melee:false, handgun:false, rifle:false, ammo9:0, ammo556:0},
     news: '城市暂时平静，只有少数人察觉到异常。',
@@ -244,9 +256,10 @@ function ts(){
   const d = curDayAdj(); 
   const h = hourMod(); 
   return `Day ${d} ${h.toString().padStart(2,'0')}:00`; 
-}
+}); }
 function fmt(n){ return (n||0).toLocaleString(); }
 function addLog(msg){ S.log.unshift({t:ts(), msg}); if(S.log.length>120) S.log.pop(); }
+function showMsg(title, text){ const d=document.getElementById('popDlg'); if(!d) return alert(text); document.getElementById('popTitle').textContent=title; document.getElementById('popText').textContent=text; d.showModal(); }
 function hourMod(){ return ((S.hour%24)+24)%24; }
 function curDayAdj(){ return S.day + Math.floor(S.hour/24); }
 function powerAvailable(){ return S.gridOn || S.solar || S.gen || S.battery; }
@@ -275,7 +288,7 @@ function render(){
   document.getElementById('staLab').textContent = `${S.stamina}/100`;
   document.getElementById('staBar').style.width = Math.max(0, S.stamina)+'%';
   document.getElementById('hoursLeftLab').textContent = `${S.hoursLeft}h`;
-  document.getElementById('moneyBar').style.width = Math.min(100, (S.money/30000)*100)+'%';
+  document.getElementById('moneyBar').style.width = Math.min(100, (S.money/10000)*100)+'%';
   document.getElementById('allowOver').checked = S.allowOver;
   document.getElementById('allowOver').onchange = (e)=>{ S.allowOver = e.target.checked; save(); };
   document.getElementById('capLab').textContent = `${S.usedSlots}/${S.storeCap}`;
@@ -283,6 +296,7 @@ function render(){
   document.getElementById('riskLab').textContent = `风险 ${S.risk}/100`;
   document.getElementById('powerLab').textContent = powerAvailable()? '电力：可用' : '电力：中断';
   document.getElementById('moodLab').textContent = `${S.mood}/100`;
+  document.getElementById('hungerLab').textContent = `${S.hunger}/100`;
 
   const tabs = document.getElementById('tabs'); tabs.innerHTML='';
   TABS.forEach(t=>{ const b=document.createElement('div'); b.className='tab'+(CUR===t.id?' active':''); b.textContent=t.name; b.onclick=()=>{ CUR=t.id; renderPanel(); }; tabs.appendChild(b); });
@@ -448,11 +462,18 @@ function shopItemSlot(id){ for(const k in SHOPS){ const f=SHOPS[k].items.find(x=
 
 // ======== 做饭系统（电力优先；否则消耗丙烷或汽油） ========
 function renderKitchen(box){
-  const rows = RECIPES.map(r=>{
-    const unlocked = r.needAny.length===0 || r.needAny.some(id=> (S.inventory[id]||0)>0 );
+  const rows = RECIPES.filter(r=>{
+    // 锁：如果设置了 unlocks 项，需已解锁或已有对应食材
+    if(r.id==='grill_fish' && !S.unlocks.grill_fish && !(S.inventory.fish_raw>0)) return false;
+    if(r.id==='grill_venison' && !S.unlocks.grill_venison && !(S.inventory.venison_raw>0)) return false;
+    return true;
+  }).map(r=>{
+    const hasNeed = r.needAny.length===0 || r.needAny.some(id=> (S.inventory[id]||0)>0 );
     const energy = r.energy==='power'? '需要电力' : (r.energy==='cook'? '需要电/燃料' : '可用电/燃料');
-    const btn = unlocked? `<button class=\"btn small\" onclick=\"cook('${r.id}')\">烹饪</button>` : '<span class=\"pill bad\">缺少食材</span>';
-    return `<tr><td>${r.name}<div class=\"muted\">${energy} · 消耗餐数 ${r.mealCost} · 精神 +${r.mood}</div></td><td class=\"right\">${btn}</td></tr>`;
+    const costText = (r.mealCost>0? `消耗餐数 ${r.mealCost}`:'') + (r.consume? (r.mealCost>0?' · ':'') + `食材 ${r.consume.join('、')} ×1` : '');
+    const gainText = r.mealsGain? ` · 制作得餐数 +${r.mealsGain}`:'';
+    const btn = hasNeed? `<button class=\"btn small\" onclick=\"cook('${r.id}')\">烹饪</button>` : '<span class=\"pill bad\">缺少食材</span>';
+    return `<tr><td>${r.name}<div class=\"muted\">${energy} · ${costText}${gainText} · 精神 +${r.mood}</div></td><td class=\"right\">${btn}</td></tr>`;
   }).join('');
   box.innerHTML = `
     <div class=\"grid\">
@@ -552,11 +573,17 @@ function hunt(){
   if(!needHours(3, +6)) return; 
   let p = 0.30; 
   if(S.pet==='dog') p += 0.20; 
-  if(Math.random()<p){ 
-    const gain = 2 + Math.floor(Math.random()*4); // 2~5
-    S.meals += gain; 
+  if(Math.random()<p){
+    // 收获鹿肉：解锁烤鹿肉菜谱
+    const cuts = 1 + Math.floor(Math.random()*2); // 1~2 份生鹿肉
+    S.inventory.venison_raw = (S.inventory.venison_raw||0) + cuts;
+    S.usedSlots += cuts; 
+    S.unlocks.grill_venison = true;
+    const gain = 2 + Math.floor(Math.random()*4); // 2~5 餐（同时获得一些可即食餐数）
+    S.meals += gain;
     S.mood = Math.min(100, S.mood + 3);
-    addLog(`打猎成功：+${gain} 餐，精神 +3`);
+    showMsg('打猎成功','获得生鹿肉 ×'+cuts+'，并解锁「烤鹿肉」。另得餐数 +'+gain+'。');
+    addLog(`打猎成功：生鹿肉 +${cuts} · 餐数 +${gain} · 精神 +3`);
   } else { 
     S.risk = Math.min(100, S.risk + 5);
     addLog('打猎无功而返，风险 +5');
@@ -564,17 +591,29 @@ function hunt(){
   save(); render(); 
 }
 
+
 function eatOut(){
   if(curDayAdj()>=0) return alert('末日已开始，餐馆已停业。');
   if(S.money<20) return alert('资金不足');
   if(!needHours(1, +2)) return;
   S.money -= 20;
   S.mood = Math.min(100, S.mood + 15);
-  addLog('外出餐馆用餐：$20，精神 +15');
+  S.stamina = Math.min(100, S.stamina + 20);
+  S.hunger = Math.min(100, S.hunger + 20);
+  addLog('外出餐馆用餐：$20，精神 +15 · 体力 +20 · 饥饿值 +20');
   save(); render();
 }
 
-function goFish(){ if(S.baseType!=='lake') return alert('需要湖边 house'); if(!(S.inventory.fishing_rod>0)) return alert('缺少钓鱼竿'); if(!needHours(2, +3)) return; const gain=1+Math.floor(Math.random()*3); S.meals+=gain; S.mood=Math.min(100,S.mood+2); addLog(`钓鱼收获 ${gain} 餐。`); save(); render(); }
+function goFish(){ if(S.baseType!=='lake') return alert('需要湖边 house'); if(!(S.inventory.fishing_rod>0)) return alert('缺少钓鱼竿'); if(!needHours(2, +3)) return; const gain=1+Math.floor(Math.random()*3);
+  // 同时获得生鱼，解锁烤鱼
+  const fish = 1 + Math.floor(Math.random()*2); // 1~2 条
+  S.inventory.fish_raw = (S.inventory.fish_raw||0) + fish;
+  S.usedSlots += fish;
+  S.unlocks.grill_fish = true;
+  S.meals += gain;
+  S.mood=Math.min(100,S.mood+2);
+  showMsg('钓鱼成功','获得生鱼 ×'+fish+'，并解锁「烤鱼」。另得餐数 +'+gain+'。');
+  addLog(`钓鱼收获 ${gain} 餐 · 生鱼 +${fish}`); save(); render(); }
 function setupGarden(){ if(!(S.inventory.seeds>0)) return alert('缺少种子'); if(!needHours(2, +2)) return; S.garden.plots+=1; S.inventory.seeds--; S.usedSlots-=shopItemSlot('seeds'); addLog('开垦 1 个地块。'); save(); render(); }
 function tendGarden(){ if(S.garden.plots<=0) return alert('没有地块'); if(S.waterL<1) return alert('需要至少 1L 水'); if(!needHours(2, +1)) return; const eff = S.garden.skill? 20:10; S.garden.progress=Math.min(100,S.garden.progress+eff); S.waterL-=1; addLog(`照料菜地，进度 +${eff}%。`); save(); render(); }
 function harvest(){ if(S.garden.progress<100) return alert('还未成熟'); const gain= S.garden.plots * (S.garden.skill? 10:7); S.meals+=gain; S.garden.progress=0; addLog(`收获蔬菜：+${gain} 餐。`); save(); render(); }
@@ -625,7 +664,7 @@ function renderInv(box){
   const invRows = Object.entries(S.inventory).sort().map(([id,q])=>{ const item = findItem(id); return `<tr><td>${item?item.name:id}</td><td>${q} ${item?item.unit:''}</td></tr>`; }).join('');
   box.innerHTML = `<div class=\"grid\"><div class=\"card\"><h3>📦 仓库总览</h3><div class=\"row\"><div class=\"pill ${S.usedSlots>=S.storeCap? 'bad' : ( (S.storeCap-S.usedSlots)/S.storeCap<=0.1? 'warn':'ok')}\">已用 ${S.usedSlots}/${S.storeCap} 格</div><div class=\"pill\">餐数：${S.meals}</div><div class=\"pill\">饮水：${S.waterL} L</div><div class=\"pill\">冷链：${S.coldDays} 天</div><div class=\"pill\">汽油：${S.gasGal.toFixed(1)} gal</div><div class=\"pill\">丙烷：${S.propane}</div><div class=\"pill\">狗粮天数：${S.petFoodDays.dog}</div><div class=\"pill\">猫粮天数：${S.petFoodDays.cat}</div></div></div><div class=\"card\"><h3>清单</h3><table><tbody>${invRows||'<tr><td>暂无物资</td><td></td></tr>'}</tbody></table></div></div>`;
 }
-function findItem(id){ for(const k in SHOPS){ const f = SHOPS[k].items.find(x=>x.id===id); if(f) return f; } return null; }
+function findItem(id){ for(const k in SHOPS){ const f = SHOPS[k].items.find(x=>x.id===id); if(f) return f; } const virtualItems={fish_raw:{name:'生鱼',unit:'条'}, venison_raw:{name:'生鹿肉',unit:'份'}, trap:{name:'简易陷阱',unit:'只'}}; return virtualItems[id]||null; }
 
 // ======== 睡觉/日结 ========
 
