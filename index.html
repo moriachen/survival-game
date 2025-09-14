@@ -252,21 +252,10 @@ let S = JSON.parse(localStorage.getItem(LS_KEY)) || initState();
 
 // ======== 工具 ========
 function save(){ localStorage.setItem(LS_KEY, JSON.stringify(S)); }
-function ts(d=null,h=null){ 
-  // 如果未传入 d/h，则在 S 存在时取 S 的游戏时间；否则使用默认的开局 Day -3 08:00
-  if(d===null || h===null){
-    if (typeof S !== 'undefined' && S && typeof S.day==='number' && typeof S.hour==='number'){
-      const hh = ((S.hour%24)+24)%24;
-      const dd = S.day + Math.floor(S.hour/24);
-      d = dd;
-      h = hh;
-    } else {
-      d = -3;
-      h = 8;
-    }
-  }
+function ts(){ 
+  const d = curDayAdj(); 
+  const h = hourMod(); 
   return `Day ${d} ${h.toString().padStart(2,'0')}:00`; 
-} ${h.toString().padStart(2,'0')}:00`; 
 }
 function fmt(n){ return (n||0).toLocaleString(); }
 function addLog(msg){ S.log.unshift({t:ts(), msg}); if(S.log.length>120) S.log.pop(); }
@@ -277,9 +266,10 @@ function powerAvailable(){ return S.gridOn || S.solar || S.gen || S.battery; }
 function spendStamina(h){ 
   const loss = Math.ceil(h*4); 
   S.stamina = Math.max(0, S.stamina - loss); 
-  // 活动按小时消耗饱食度（饥饿值）：基础每小时 -3
-  const hungerLoss = Math.ceil(h*3);
-  S.hunger = Math.max(0, (S.hunger||0) - hungerLoss);
+  
+  // 同时减少饥饿值
+  const hungerLoss = Math.ceil(h * 2); // 每小时 -2，可自行调整数值
+  S.hunger = Math.max(0, S.hunger - hungerLoss);
 }
 function needHours(h, riskDelta=0){
   if(S.hoursLeft>=h){ S.hoursLeft -= h; } else if(S.allowOver){ const deficit=h-S.hoursLeft; S.hoursLeft=0; addLog(`透支 ${deficit} 小时，将从睡眠扣除。`);} else { alert('今天工时不足（可勾选允许透支）'); return false; }
