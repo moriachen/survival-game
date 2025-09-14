@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>Survival Demo</title>
+  <style>
+    body { 
+      font-family: sans-serif; 
+      background: #111; 
+      color: #f5f5f5; 
+      text-align: center; 
+      padding: 50px;
+    }
+    h1 { color: #ff4d4f; }
+    #count { font-size: 2em; margin: 20px 0; }
+    button {
+      background: #ff4d4f; 
+      border: none; 
+      color: white; 
+      font-size: 1em; 
+      padding: 10px 20px; 
+      margin: 5px; 
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover { background: #ff7875; }
+  </style>
+</head>
+<body>
+  <h1>末日囤货模拟 Demo</h1>
+  <p>点击按钮测试计数功能 👇</p>
+
+  <div id="count">0</div>
+  <button onclick="inc()">+1</button>
+  <button onclick="dec()">-1</button>
+
+  <script>
+    let count = 0;
+    function render() {
+      document.getElementById("count").innerText = count;
+    }
+    function inc() { count++; render(); }
+    function dec() { count--; render(); }
+  </script>
+</body>
+</html>
