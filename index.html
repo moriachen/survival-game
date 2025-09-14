@@ -240,11 +240,12 @@ let S = JSON.parse(localStorage.getItem(LS_KEY)) || initState();
 
 // ======== 工具 ========
 function save(){ localStorage.setItem(LS_KEY, JSON.stringify(S)); }
-function ts(){ 
-  const d = curDayAdj(); 
-  const h = hourMod(); 
-  return `Day ${d} ${h.toString().padStart(2,'0')}:00`; 
-}; }
+function ts(){
+  const d = curDayAdj();
+  const h = hourMod();
+  return `Day ${d} ${h.toString().padStart(2,'0')}:00`;
+}
+
 function fmt(n){ return (n||0).toLocaleString(); }
 function addLog(msg){ S.log.unshift({t:ts(), msg}); if(S.log.length>120) S.log.pop(); }
 function hourMod(){ return ((S.hour%24)+24)%24; }
