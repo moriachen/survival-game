@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>末日囤货生存 · 网页版（完整版·宠物自带+宠粮）</title>
+  <style>
+    :root{
+      --bg:#0b0f14; --panel:#10161c; --card:#131b23; --line:#232e3a; --text:#f5f7fa; --muted:#9fb0c2;
+      --accent:#ff4d4f; --ok:#14e099; --warn:#ffcc4d; --vio:#6c5ce7;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0b0f14,#0e1420);color:var(--text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,PingFang SC,Helvetica,Arial;}
+    .wrap{max-width:1100px;margin:0 auto;padding:18px}
+    h1{font-size:28px;margin:8px 0 12px 0}
+    .muted{color:var(--muted)}
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
+    @media (min-width:900px){ .grid{grid-template-columns:1fr 1fr} }
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+    .tile{background:#0f1622;border:1px solid var(--line);border-radius:14px;padding:14px}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .col{display:flex;flex-direction:column;gap:10px}
+    .btn{background:#1f2937;color:#fff;border:1px solid #0000;border-radius:12px;padding:10px 14px;cursor:pointer}
+    .btn.primary{background:var(--accent)}
+    .btn.good{background:var(--ok);color:#072}
+    .btn.ghost{background:transparent;border:1px solid var(--line)}
+    .btn.small{padding:6px 10px;border-radius:10px}
+    .stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+    .kpi{min-width:160px;background:#0f1622;border:1px solid var(--line);border-radius:14px;padding:12px}
+    .kpi .lab{font-size:12px;color:var(--muted)}
+    .kpi .num{font-size:22px;font-weight:800}
+    .bar{height:8px;background:#0d121a;border-radius:999px;overflow:hidden}
+    .bar>i{display:block;height:100%;background:linear-gradient(90deg,#ff4d4f,#ff7a45)}
+    .pill{padding:4px 10px;border-radius:999px;font-size:12px}
+    .pill.ok{background:rgba(20,224,153,.18);color:var(--ok)}
+    .pill.warn{background:rgba(255,204,77,.2);color:var(--warn)}
+    .pill.bad{background:rgba(255,77,79,.2);color:#ff6b6b}
+
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+    .tab{padding:10px 14px;border:1px solid var(--line);border-radius:12px;cursor:pointer}
+    .tab.active{background:var(--accent);border-color:transparent}
+
+    table{width:100%;border-collapse:separate;border-spacing:0 10px}
+    th,td{padding:10px 12px}
+    tbody tr{background:#0f1622;border:1px solid var(--line)}
+    tbody tr td:first-child{border-radius:10px 0 0 10px}
+    tbody tr td:last-child{border-radius:0 10px 10px 0}
+    input[type=number]{width:90px;background:#0d1620;border:1px solid var(--line);color:#fff;border-radius:10px;padding:8px}
+    .right{text-align:right}
+
+    .footer{opacity:.6;text-align:center;margin:18px 0 8px}
+    .notice{border-left:4px solid var(--accent);padding-left:10px}
+    dialog{border:none;border-radius:16px;background:#0f1622;color:#fff;padding:18px;max-width:420px}
+    dialog::backdrop{background:rgba(0,0,0,.55)}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🧟‍♂️ 末日囤货生存 · 网页版（完整版·宠物自带+宠粮）</h1>
+  <div class="muted">单文件 · 本地存档 · 规则驱动（无后端）</div>
+
+  <!-- 顶部 KPI -->
+  <div class="stat" id="kpi">
+    <div class="kpi"><div class="lab">日期</div><div class="num" id="dayLab"></div><div class="muted" id="hourLab"></div></div>
+    <div class="kpi"><div class="lab">资金（$）</div><div class="num" id="moneyLab"></div><div class="bar"><i id="moneyBar" style="width:50%"></i></div></div>
+    <div class="kpi"><div class="lab">体力</div><div class="num" id="staLab"></div><div class="bar"><i id="staBar" style="width:80%"></i></div></div>
+    <div class="kpi"><div class="lab">精神度</div><div class="num" id="moodLab"></div><div class="muted">0 则崩溃</div></div>
+    <div class="kpi"><div class="lab">饥饿值</div><div class="num" id="hungerLab"></div><div class="muted">0 则进入饥饿倒计时</div></div>
+    <div class="kpi"><div class="lab">今日剩余工时</div><div class="num" id="hoursLeftLab"></div><div class="muted">允许透支 <input type="checkbox" id="allowOver"></div></div>
+    <div class="kpi"><div class="lab">仓库容量</div><div class="num" id="capLab"></div><div class="muted" id="capSub"></div></div>
+    <div class="kpi"><div class="lab">风险/电力</div><div class="num" id="riskLab"></div><div class="muted" id="powerLab"></div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" id="tabs"></div>
+
+  <!-- Panels -->
+  <div id="panel"></div>
+
+  <div class="footer">© Survival Web Demo · 建议部署 GitHub Pages</div>
+</div>
+
+<!-- 开局宠物选择 -->
+<dialog id="petDlg">
+  <h3>选择你的宠物</h3>
+  <p class="muted">你不会去宠物店；你自带一只宠物。请在猫与狗中选择其一。后续需要在超市购买相应的宠物粮。</p>
+  <div class="row">
+    <button class="btn" id="chooseDog">🐕 选择小狗</button>
+    <button class="btn" id="chooseCat">🐈 选择小猫</button>
+  </div>
+</dialog>
+
+<dialog id="popDlg">
+  <h3 id="popTitle">提示</h3>
+  <div id="popText" class="muted" style="margin:8px 0 12px"></div>
+  <div class="row"><button class="btn" onclick="document.getElementById('popDlg').close()">好的</button></div>
+</dialog>
+
+<script>
+const LS_KEY = 'survival_web_v5_petfood';
+
+// ======== 物资与商店定义（移除宠物店；在超市加入猫粮/狗粮与描述） ========
+const SHOPS = {
+  costco: { name:'Costco 食品/生活', travelH:3, unloadH:2, items:[
+    {id:'rice50', name:'大米 50lb', price:35, unit:'袋', slot:10, meals:240},
+    {id:'pasta6', name:'意面 6lb 箱', price:10, unit:'箱', slot:3, meals:30},
+    {id:'canned', name:'罐头 12罐', price:12, unit:'箱', slot:5, meals:24},
+    {id:'bars', name:'能量棒 30条', price:18, unit:'盒', slot:3, meals:30},
+    {id:'water24', name:'瓶装水 24×500ml', price:4, unit:'箱', slot:2, waterL:12},
+    {id:'oil5l', name:'食用油 5L', price:12, unit:'桶', slot:3},
+    {id:'milkpow', name:'奶粉 2.5kg', price:25, unit:'罐', slot:4, meals:25},
+    {id:'eggs60', name:'鸡蛋 60枚', price:12, unit:'盒', slot:4, meals:20, needCold:true},
+    {id:'cheese2k', name:'奶酪 2kg', price:20, unit:'块', slot:5, meals:20, needCold:true},
+    {id:'dogfood', name:'狗粮（10天份）', price:20, unit:'袋', slot:4, petDays:{dog:10}},
+    {id:'catfood', name:'猫粮（10天份）', price:18, unit:'袋', slot:4, petDays:{cat:10}}
+  ]},
+  walmart: { name:'Walmart 综合超市', travelH:3, unloadH:2, items:[
+    {id:'flour25', name:'面粉 25lb', price:18, unit:'袋', slot:5, meals:60},
+    {id:'salt', name:'食盐 50包', price:6, unit:'箱', slot:2},
+    {id:'sugar', name:'白糖 10lb', price:8, unit:'袋', slot:3},
+    {id:'freezer_meat', name:'冷冻肉 10lb', price:25, unit:'包', slot:6, meals:25, needCold:true},
+    {id:'fishing_rod', name:'钓鱼竿', price:20, unit:'根', slot:2},
+    {id:'dogfood', name:'狗粮（10天份）', price:22, unit:'袋', slot:4, petDays:{dog:10}},
+    {id:'catfood', name:'猫粮（10天份）', price:20, unit:'袋', slot:4, petDays:{cat:10}}
+  ]},
+  cvs: { name:'CVS 药品', travelH:3, unloadH:1, items:[
+    {id:'pain', name:'止痛药', price:10, unit:'瓶', slot:1},
+    {id:'vit', name:'维生素', price:15, unit:'瓶', slot:1},
+    {id:'alcohol', name:'消毒液 1L', price:8, unit:'瓶', slot:1},
+    {id:'mask', name:'口罩 50只', price:20, unit:'盒', slot:2},
+    {id:'cold', name:'感冒药', price:12, unit:'盒', slot:1},
+    {id:'antinflam', name:'消炎药(OTC)', price:15, unit:'盒', slot:1}
+  ]},
+  homedepot: { name:'Home Depot 设备/建材', travelH:3, unloadH:2, items:[
+    {id:'solar', name:'太阳能板 1kW', price:2000, unit:'套', slot:30, build:'solar', buildH:2},
+    {id:'battery', name:'储能电池(UPS)', price:1000, unit:'台', slot:20, build:'battery', buildH:0},
+    {id:'gen', name:'发电机(中型)', price:800, unit:'台', slot:20, build:'gen', buildH:2},
+    {id:'filter', name:'家用净水机', price:200, unit:'台', slot:10, build:'filter', buildH:3},
+    {id:'rain', name:'雨水收集桶 50gal', price:250, unit:'只', slot:20, build:'rain', buildH:2},
+    {id:'freezer_ap', name:'立式冰柜', price:300, unit:'台', slot:20, build:'freezer', buildH:1},
+    {id:'toilet', name:'便携厕所/化学厕所', price:120, unit:'套', slot:8, build:'toilet', buildH:0},
+    {id:'camp_stove', name:'便携炉具(丙烷)', price:45, unit:'套', slot:4},
+    {id:'propane', name:'丙烷气罐 (10次)', price:20, unit:'罐', slot:3},
+    {id:'board', name:'木板', price:3, unit:'块', slot:1, build:'board'},
+    {id:'wire', name:'铁丝网卷', price:40, unit:'卷', slot:5, build:'wire'},
+    {id:'tools', name:'工具套装', price:40, unit:'套', slot:5}
+  ]},
+  bookstore: { name:'书店 技能书籍', travelH:2, unloadH:0, items:[
+    {id:'book_garden', name:'《家庭园艺入门》', price:25, unit:'本', slot:1},
+    {id:'book_gen', name:'《发电机维护》', price:30, unit:'本', slot:1},
+    {id:'book_firstaid', name:'《急救手册》', price:30, unit:'本', slot:1}
+  ]},
+  gas: { name:'加油站', travelH:2, unloadH:0, items:[
+    {id:'jerrycan', name:'油桶(空)', price:25, unit:'只', slot:6},
+    {id:'gas5', name:'汽油 5gal（需油桶）', price:18, unit:'桶', slot:5}
+  ]},
+  market: { name:'农贸市场/种子', travelH:2, unloadH:1, items:[
+    {id:'seeds', name:'蔬菜种子组合', price:20, unit:'套', slot:1},
+    {id:'fert', name:'有机肥 10lb', price:15, unit:'袋', slot:3}
+  ]},
+  weapon: { name:'户外/武器店（虚构）', travelH:3, unloadH:1, items:[
+    {id:'melee_bat', name:'防身棒', price:25, unit:'根', slot:3},
+    {id:'handgun', name:'手枪（需合法许可）', price:400, unit:'把', slot:10},
+    {id:'rifle', name:'步枪（需合法许可）', price:800, unit:'把', slot:15},
+    {id:'ammo9', name:'9mm 弹药 ×50', price:30, unit:'盒', slot:2},
+    {id:'ammo556', name:'5.56 弹药 ×60', price:45, unit:'盒', slot:3},
+    {id:'trap', name:'简易陷阱', price:35, unit:'只', slot:3}
+  ]}
+};
+
+// 物资转化（购买即折算为抽象“餐数/饮水”）
+const ITEM_EFFECTS = {
+  rice50:{ meals:240 }, pasta6:{meals:30}, canned:{meals:24}, bars:{meals:30}, milkpow:{meals:25},
+  eggs60:{meals:20, perishable:true}, cheese2k:{meals:20, perishable:true},
+  water24:{waterL:12}, freezer_meat:{meals:25, perishable:true}
+};
+
+// 菜谱（节选，保留可玩度）
+const RECIPES = [
+  {id:'grill_fish', name:'烤鱼', needAny:['fish_raw'], mealCost:0, mealsGain:2, mood:+10, energy:'cook', consume:['fish_raw']},
+  {id:'fish_soup', name:'鱼汤', needAny:['fish_raw','salt'], mealCost:0, mealsGain:2, mood:+8, energy:'cook', consume:['fish_raw']},
+  {id:'grill_venison', name:'烤鹿肉', needAny:['venison_raw'], mealCost:0, mealsGain:3, mood:+12, energy:'cook', consume:['venison_raw']},
+  {id:'rice_plain', name:'白米饭', needAny:['rice50'], mealCost:1, mood:+2, energy:'any'},
+  {id:'soup_veg', name:'蔬菜汤', needAny:['seeds','canned'], mealCost:1, mood:+3, energy:'any'},
+  {id:'fried_rice', name:'蛋炒饭', needAny:['rice50','eggs60','oil5l'], mealCost:2, mood:+8, energy:'cook'},
+  {id:'pasta_red', name:'番茄肉酱面', needAny:['pasta6','freezer_meat'], mealCost:2, mood:+12, energy:'cook'},
+  {id:'stew_beef', name:'炖牛肉', needAny:['freezer_meat'], mealCost:3, mood:+15, energy:'cook'},
+  {id:'bbq_pork', name:'红烧肉/烤肉', needAny:['freezer_meat','sugar'], mealCost:3, mood:+15, energy:'cook'},
+  {id:'coffee', name:'咖啡', needAny:[], mealCost:0, mood:+10, energy:'any'},
+  {id:'pizza', name:'电烤披萨', needAny:['flour25','cheese2k'], mealCost:3, mood:+30, energy:'power'},
+  {id:'salad_simple', name:'简易沙拉', needAny:['seeds'], mealCost:1, mood:+6, energy:'any'}
+];
+
+const WORLD_NEWS = [
+  '多地抢购升级，警方建议减少出行。',
+  '电网负荷接近极限，或将分区限电。',
+  '医院急诊爆满，常规药品短缺。',
+  '加油站排队明显增加。',
+  '局部骚乱视频流传，建议避开人群。'
+];
+
+const EVENTS = [
+  {id:'theft', minRisk:35, text:'夜间有可疑人员徘徊，损失少量物资。', effect:s=>{ const keys=Object.keys(s.inventory); if(keys.length){ const k=keys[Math.floor(Math.random()*keys.length)]; s.inventory[k]--; if(s.inventory[k]<=0) delete s.inventory[k]; s.usedSlots = Math.max(0, s.usedSlots-1); }}},
+  {id:'car_issue', minRisk:25, text:'车辆小故障，修理花费 $30。', effect:s=>{ s.money=Math.max(0,s.money-30); }},
+  {id:'survivor', minRisk:10, text:'遇到陌生幸存者，请求帮助。', effect:s=>{ if(confirm('遇到幸存者：是否接纳？(会加入队伍；可能自带技能，也可能被背刺)')){
+      if(Math.random()<0.5){
+        // 加入到队伍
+        S.team.push({id:Date.now()+''+Math.floor(Math.random()*1000), name:'幸存者', type:'ally', typeZh:'泛用'});
+        const roll=Math.random();
+        if(roll<0.34){ s.skills.electrician=true; addLog('你接纳了电工：发电机/太阳能维修成功率提高。'); }
+        else if(roll<0.67){ s.skills.pharmacist=true; addLog('你接纳了药师：药品使用效率提升。'); }
+        else { s.skills.guard=true; addLog('你接纳了保安/军人：夜间袭击风险 -5。'); s.risk=Math.max(0,s.risk-5); }
+        s.mood=Math.min(100,s.mood+5);
+      }else{
+        addLog('幸存者背刺你！丢失若干物资，精神度 -10。'); s.mood=Math.max(0,s.mood-10);
+        const keys=Object.keys(s.inventory); for(let i=0;i<2 && keys.length;i++){ const k=keys[Math.floor(Math.random()*keys.length)]; s.inventory[k]--; if(s.inventory[k]<=0) {delete s.inventory[k]; keys.splice(keys.indexOf(k),1);} }
+        s.usedSlots=Math.max(0,s.usedSlots-3);
+      }
+    } else { addLog('你拒绝了幸存者的加入。'); } }},
+  {id:'zombie_evo', minRisk:0, text:'丧尸进化：速度/力量增强。', effect:s=>{ s.risk=Math.min(100,s.risk+5); }}
+];
+
+// ======== 初始状态 ========
+function initState(){
+  return {
+    day:-3, hour:8, hoursLeft:12,
+    money:10000, stamina:100, mood:100,
+    hunger:100,
+    starveDays:0,
+    allowOver:false,
+    baseType:null,
+    storeCap:1000, usedSlots:0,
+    solar:false, battery:false, gen:false, filter:false, rain:false, freezer:false, toilet:false,
+    inventory:{}, meals:0, waterL:0,
+    gasGal:0, propane:0,
+    coldDays:0,
+    risk:10, gridOn:true,
+    pet:null, // 'dog' | 'cat'
+    petFoodDays:{dog:0, cat:0},
+    team:[],
+    skills:{ electrician:false, pharmacist:false, guard:false },
+    unlocks:{ grill_fish:false, grill_venison:false },
+    garden:{plots:0, skill:false, progress:0},
+    wep:{melee:false, handgun:false, rifle:false, ammo9:0, ammo556:0},
+    news: '城市暂时平静，只有少数人察觉到异常。',
+    log:[{t:ts(), msg:'你是美国留学生。重生至末日前第3天，航班封锁，需用 3 万美元完成采购与布置。'}]
+  }
+}
+
+let S = JSON.parse(localStorage.getItem(LS_KEY)) || initState();
+
+// ======== 工具 ========
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(S)); }
+function ts(){ 
+  const d = curDayAdj(); 
+  const h = hourMod(); 
+  return `Day ${d} ${h.toString().padStart(2,'0')}:00`; 
+}); }
+function fmt(n){ return (n||0).toLocaleString(); }
+function addLog(msg){ S.log.unshift({t:ts(), msg}); if(S.log.length>120) S.log.pop(); }
+function showMsg(title, text){ const d=document.getElementById('popDlg'); if(!d) return alert(text); document.getElementById('popTitle').textContent=title; document.getElementById('popText').textContent=text; d.showModal(); }
+function hourMod(){ return ((S.hour%24)+24)%24; }
+function curDayAdj(){ return S.day + Math.floor(S.hour/24); }
+function powerAvailable(){ return S.gridOn || S.solar || S.gen || S.battery; }
+function spendStamina(h){ const loss = Math.ceil(h*4); S.stamina = Math.max(0, S.stamina - loss); }
+function needHours(h, riskDelta=0){
+  if(S.hoursLeft>=h){ S.hoursLeft -= h; } else if(S.allowOver){ const deficit=h-S.hoursLeft; S.hoursLeft=0; addLog(`透支 ${deficit} 小时，将从睡眠扣除。`);} else { alert('今天工时不足（可勾选允许透支）'); return false; }
+  S.hour += h; spendStamina(h); S.risk = Math.min(100, Math.max(0, S.risk + riskDelta + (S.pet==='dog'?1:0))); return true;
+}
+
+// ======== UI ========
+const TABS = [
+  {id:'dash', name:'仪表盘'},
+  {id:'shop', name:'采购'},
+  {id:'base', name:'庇护所'},
+  {id:'kitchen', name:'做饭'},
+  {id:'actions', name:'活动'},
+  {id:'team', name:'同伴/宠物'},
+  {id:'inv',  name:'仓库'}
+];
+let CUR='dash';
+
+function render(){
+  document.getElementById('dayLab').textContent = `Day ${curDayAdj()}`;
+  document.getElementById('hourLab').textContent = `当前时间：${hourMod().toString().padStart(2,'0')}:00`;
+  document.getElementById('moneyLab').textContent = `$${fmt(S.money)}`;
+  document.getElementById('staLab').textContent = `${S.stamina}/100`;
+  document.getElementById('staBar').style.width = Math.max(0, S.stamina)+'%';
+  document.getElementById('hoursLeftLab').textContent = `${S.hoursLeft}h`;
+  document.getElementById('moneyBar').style.width = Math.min(100, (S.money/10000)*100)+'%';
+  document.getElementById('allowOver').checked = S.allowOver;
+  document.getElementById('allowOver').onchange = (e)=>{ S.allowOver = e.target.checked; save(); };
+  document.getElementById('capLab').textContent = `${S.usedSlots}/${S.storeCap}`;
+  document.getElementById('capSub').textContent = `剩余 ${S.storeCap - S.usedSlots} 格`;
+  document.getElementById('riskLab').textContent = `风险 ${S.risk}/100`;
+  document.getElementById('powerLab').textContent = powerAvailable()? '电力：可用' : '电力：中断';
+  document.getElementById('moodLab').textContent = `${S.mood}/100`;
+  document.getElementById('hungerLab').textContent = `${S.hunger}/100`;
+
+  const tabs = document.getElementById('tabs'); tabs.innerHTML='';
+  TABS.forEach(t=>{ const b=document.createElement('div'); b.className='tab'+(CUR===t.id?' active':''); b.textContent=t.name; b.onclick=()=>{ CUR=t.id; renderPanel(); }; tabs.appendChild(b); });
+  renderPanel();
+
+  // 初次开局：要求选择宠物
+  if(S.pet===null){ const d=document.getElementById('petDlg'); d.showModal(); document.getElementById('chooseDog').onclick=()=>{ S.pet='dog'; addLog('你选择了小狗作为同伴。'); save(); d.close(); render(); }; document.getElementById('chooseCat').onclick=()=>{ S.pet='cat'; addLog('你选择了小猫作为同伴。'); save(); d.close(); render(); }; }
+}
+
+function renderPanel(){
+  const box = document.getElementById('panel');
+  if(CUR==='dash') return renderDash(box);
+  if(CUR==='shop') return renderShop(box);
+  if(CUR==='base') return renderBase(box);
+  if(CUR==='kitchen') return renderKitchen(box);
+  if(CUR==='actions') return renderActions(box);
+  if(CUR==='team') return renderTeam(box);
+  if(CUR==='inv')  return renderInv(box);
+}
+
+function renderDash(box){
+  const baseInfo = S.baseType? (S.baseType==='suburb'?'郊外 house（耕种/打猎加成，每日 +1 餐）':'湖边 house（可取水/钓鱼，每日 +2L 水）') : '未选择庇护所';
+  const petInfo = S.pet? (S.pet==='dog'?`🐕 小狗：日常+7精神（需狗粮），偶尔招惹风险；狗粮天数：${S.petFoodDays.dog}`:`🐈 小猫：日常+5精神（需猫粮）；猫粮天数：${S.petFoodDays.cat}`) : '未选择';
+  const teamInfo = S.team.length? S.team.map(x=>x.name).join('、') : '无';
+  box.innerHTML = `
+    <div class="grid">
+      <div class="card">
+        <h3 style="color:${curDayAdj()>=0?'#ff6b6b':'#14e099'}">外界实况（每日刷新）</h3>
+        <div class="muted">${S.news}</div>
+        <div class="row" style="margin-top:10px;gap:8px">
+          <button class="btn ghost" onclick="advanceHour()">时间 +1h</button>
+          <button class="btn primary" onclick="sleepNow()">睡觉（结算当日）</button>
+          <button class="btn" onclick="resetGame()">重开</button>
+        </div>
+        <div class="notice" style="margin-top:12px">提示：出行会提高风险；体力随工时下降；精神度为 0 将直接崩溃。</div>
+      </div>
+
+      <div class="card">
+        <h3>庇护所 / 队伍</h3>
+        <div>庇护所：${baseInfo}</div>
+        ${!S.baseType? `<div class="row" style="margin-top:10px">
+          <button class="btn small" onclick="chooseBase('suburb')">选择郊外 House（容量 +100）</button>
+          <button class="btn small" onclick="chooseBase('lake')">选择湖边 House（每日 +2L 水）</button>
+        </div>`:''}
+        <div style="margin-top:8px">宠物：${petInfo}</div>
+        <div>同伴：${teamInfo}</div>
+        <h3 style="margin-top:12px">今日日志</h3>
+        <div id="log"></div>
+      </div>
+    </div>
+  `;
+  const log = document.getElementById('log');
+  log.innerHTML = S.log.map(e=>`<div class="tile"><b>${e.t}</b> — ${e.msg}</div>`).join('');
+}
+
+function chooseBase(t){ if(S.baseType) return; S.baseType=t; if(t==='suburb'){ S.storeCap+=100; addLog('选择郊外 house：仓库容量 +100。'); } if(t==='lake'){ addLog('选择湖边 house：每日额外 +2L 水。'); } save(); render(); }
+function advanceHour(){ if(!needHours(1)) return; save(); render(); }
+
+// ======== 采购 ========
+const CAR_CAP = 120;
+function renderShop(box){
+  if(curDayAdj()>=0){
+    box.innerHTML = `<div class="card"><h3>🛒 采购</h3><div class="notice">末日已开始（Day >= 0），采购渠道关闭。</div></div>`;
+    return;
+  }
+
+  let shopId = 'costco';
+  box.innerHTML = `
+    <div class="card">
+      <div class="row"><h3>🛒 选择商店</h3>
+        <select id="shopSel"></select>
+        <button class="btn ghost small" id="goBtn">出发</button>
+      </div>
+      <div class="muted">车辆容量：每趟 ${CAR_CAP} 格；若超出将自动多趟往返（含卸货时间）。</div>
+    </div>
+    <div class="card" id="shopPanel" style="display:none"></div>
+  `;
+  const sel = document.getElementById('shopSel'); sel.innerHTML = Object.entries(SHOPS).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join(''); sel.onchange=()=>{ shopId=sel.value };
+  document.getElementById('goBtn').onclick = ()=>{
+    const shop = SHOPS[shopId]; if(!needHours(shop.travelH, +5)) return; addLog(`前往 ${shop.name}（${shop.travelH}h）`); renderShopInner(shopId);
+  };
+}
+
+function renderShopInner(shopId){
+  const wrap = document.getElementById('shopPanel'); wrap.style.display='block'; const shop = SHOPS[shopId];
+  const rows = shop.items.map(it=>`<tr><td>${it.name}<div class=\"muted\">$${it.price}/${it.unit} · 占格 ${it.slot}${it.needCold?' · 需冷藏':''}</div></td><td class=\"right\"><input type=\"number\" min=\"0\" value=\"0\" data-id=\"${it.id}\" class=\"qty\"></td></tr>`).join('');
+  wrap.innerHTML = `
+    <h3>${shop.name}</h3>
+    <table><tbody>${rows}</tbody></table>
+    <div class="row" style="justify-content:space-between">
+      <div>本次预计：<span id="est"></span></div>
+      <div class="row"><button class="btn ghost small" id="calcBtn">重新估算</button><button class="btn primary" id="buyBtn">结算并返回（含卸货）</button></div>
+    </div>`;
+
+  const collectQty = ()=>{ const o={}; wrap.querySelectorAll('.qty').forEach(i=>{ o[i.dataset.id]=Number(i.value||0); }); return o; };
+  const est = ()=>{
+    const qtys = collectQty(); let price=0, slots=0, meals=0, water=0, cold=0, petDaysDog=0, petDaysCat=0;
+    shop.items.forEach(it=>{ const q=qtys[it.id]||0; price+=q*it.price; slots+=q*it.slot; const eff=ITEM_EFFECTS[it.id]||{}; meals+=(eff.meals||0)*q; water+=(eff.waterL||0)*q; if(it.needCold) cold+=q; if(it.petDays){ petDaysDog += (it.petDays.dog||0)*q; petDaysCat += (it.petDays.cat||0)*q; }
+    });
+    const trips = Math.max(1, Math.ceil(slots/CAR_CAP));
+    let extraH = (trips-1)*(shop.travelH+shop.unloadH); if(slots>CAR_CAP) extraH += 1;
+    document.getElementById('est').textContent = `花费 $${fmt(price)} · 占格 ${slots}（${trips} 趟） · 额外 +${extraH}h · 餐数 +${meals} · 水 +${water}L · 冷链件数 ${cold} · 狗粮天数 +${petDaysDog} · 猫粮天数 +${petDaysCat}`;
+    return {price, slots, meals, water, extraH, trips, cold, qtys, petDaysDog, petDaysCat};
+  };
+  document.getElementById('calcBtn').onclick = est;
+  document.getElementById('buyBtn').onclick = ()=>{
+    const r = est(); const needH = r.extraH + shop.unloadH; if(S.money<r.price) return alert('资金不足'); if(S.usedSlots + r.slots > S.storeCap) return alert('仓库容量不足');
+    if(r.qtys.gas5>0 && !(r.qtys.jerrycan>0 || (S.inventory.jerrycan||0)>0)) return alert('购买汽油需要油桶(jerrycan)。');
+    if(!needHours(needH, +5)) return;
+
+    S.money -= r.price; S.usedSlots += r.slots; S.meals += r.meals; S.waterL += r.water; S.coldDays += r.cold>0? 2:0;
+
+    // 写库存/弹药/燃料
+    Object.entries(r.qtys).forEach(([id,q])=>{ if(!q) return; S.inventory[id]=(S.inventory[id]||0)+q; if(id==='melee_bat') S.wep.melee=true; if(id==='handgun') S.wep.handgun=true; if(id==='rifle') S.wep.rifle=true; if(id==='ammo9') S.wep.ammo9+=q*50; if(id==='ammo556') S.wep.ammo556+=q*60; if(id==='gas5') S.gasGal += q*5; if(id==='propane') S.propane += q*10; });
+
+    // 宠物粮换算为“天数池”
+    S.petFoodDays.dog += r.petDaysDog;
+    S.petFoodDays.cat += r.petDaysCat;
+
+    addLog(`在 ${shop.name} 采购：$${fmt(r.price)}，占格 +${r.slots}（${r.trips} 趟），餐数 +${r.meals}，水 +${r.water}L，狗粮天数 +${r.petDaysDog}，猫粮天数 +${r.petDaysCat}。`);
+    save(); CUR='dash'; render();
+  };
+  est();
+}
+
+// ======== 庇护所（设备安装/加固/厕所） ========
+function renderBase(box){
+  box.innerHTML = `
+    <div class="grid">
+      <div class="card">
+        <h3>🏠 安装/加固</h3>
+        <div class="col">
+          ${buildRow('太阳能(2h)','solar','solar',2)}
+          ${buildRow('储能电池(0h)','battery','battery',0)}
+          ${buildRow('发电机(2h)','gen','gen',2)}
+          ${buildRow('净水机(3h)','filter','filter',3)}
+          ${buildRow('雨水桶(2h)','rain','rain',2)}
+          ${buildRow('立式冰柜(1h)','freezer','freezer_ap',1)}
+          ${buildRow('便携厕所(0h)','toilet','toilet',0)}
+          ${consRow('封窗 木板 1h/块','board',1)}
+          ${consRow('围栏 铁丝网 2h/卷','wire',2)}
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>当前状态</h3>
+        <div>庇护所：${S.baseType? (S.baseType==='suburb'?'郊外 house':'湖边 house') : '未选择'}</div>
+        <div>电力：${powerAvailable()? '<span class=pill ok>可用</span>':'<span class=pill bad>中断</span>'}</div>
+        <div>冷链缓冲：${S.coldDays} 天</div>
+        <div>设备：太阳能 ${tick(S.solar)} / 电池 ${tick(S.battery)} / 发电机 ${tick(S.gen)} / 净水 ${tick(S.filter)} / 雨水 ${tick(S.rain)} / 冰柜 ${tick(S.freezer)} / 厕所 ${tick(S.toilet)}</div>
+        <div>木板：${S.inventory.board||0} 块 · 已封 ${S.boards||0} 块</div>
+        <div>铁丝网：${S.inventory.wire||0} 卷 · 已布置 ${S.wires||0} 卷</div>
+      </div>
+    </div>
+  `;
+}
+function tick(b){return b?'✔️':'—'}
+function buildRow(label, key, needItem, h){ const has=S[key]; const own=(S.inventory[needItem]||0)>0; const btn=has? '<span class="pill ok">已完成</span>' : (own? `<button class=\"btn small\" onclick=\"doBuild('${key}',${h},'${needItem}')\">安装（${h}h）</button>`: '<span class="pill bad">缺少材料</span>'); return `<div class=\"tile row\" style=\"justify-content:space-between\"><div>${label}</div><div>${btn}</div></div>`; }
+function consRow(label, itemId, h){ const own=S.inventory[itemId]||0; const btn=own>0? `<button class=\"btn small\" onclick=\"consumeItem('${itemId}',${h})\">使用 1（${h}h）</button>`:'<span class=\"pill bad\">库存不足</span>'; return `<div class=\"tile row\" style=\"justify-content:space-between\"><div>${label}</div><div>${btn}</div></div>`; }
+function doBuild(key,h,itemId){ if(!needHours(h)) return; S.inventory[itemId]--; if(S.inventory[itemId]<=0) delete S.inventory[itemId]; S.usedSlots -= shopItemSlot(itemId); S[key]=true; if(key==='freezer') S.coldDays=5; addLog(`完成：${key} 安装（${h}h）`); save(); render(); }
+function consumeItem(itemId,h){ if(!needHours(h)) return; S.inventory[itemId]--; if(S.inventory[itemId]<=0) delete S.inventory[itemId]; S.usedSlots -= shopItemSlot(itemId); if(itemId==='board') S.boards=(S.boards||0)+1; if(itemId==='wire') S.wires=(S.wires||0)+1; addLog(`使用 ${itemId} 1 个（${h}h）`); save(); render(); }
+function shopItemSlot(id){ for(const k in SHOPS){ const f=SHOPS[k].items.find(x=>x.id===id); if(f) return f.slot; } return 0; }
+
+// ======== 做饭系统（电力优先；否则消耗丙烷或汽油） ========
+function renderKitchen(box){
+  const rows = RECIPES.filter(r=>{
+    // 锁：如果设置了 unlocks 项，需已解锁或已有对应食材
+    if(r.id==='grill_fish' && !S.unlocks.grill_fish && !(S.inventory.fish_raw>0)) return false;
+    if(r.id==='grill_venison' && !S.unlocks.grill_venison && !(S.inventory.venison_raw>0)) return false;
+    return true;
+  }).map(r=>{
+    const hasNeed = r.needAny.length===0 || r.needAny.some(id=> (S.inventory[id]||0)>0 );
+    const energy = r.energy==='power'? '需要电力' : (r.energy==='cook'? '需要电/燃料' : '可用电/燃料');
+    const costText = (r.mealCost>0? `消耗餐数 ${r.mealCost}`:'') + (r.consume? (r.mealCost>0?' · ':'') + `食材 ${r.consume.join('、')} ×1` : '');
+    const gainText = r.mealsGain? ` · 制作得餐数 +${r.mealsGain}`:'';
+    const btn = hasNeed? `<button class=\"btn small\" onclick=\"cook('${r.id}')\">烹饪</button>` : '<span class=\"pill bad\">缺少食材</span>';
+    return `<tr><td>${r.name}<div class=\"muted\">${energy} · ${costText}${gainText} · 精神 +${r.mood}</div></td><td class=\"right\">${btn}</td></tr>`;
+  }).join('');
+  box.innerHTML = `
+    <div class=\"grid\">
+      <div class=\"card\">
+        <h3>🍳 厨房</h3>
+        <div class=\"muted\">优先使用电力烹饪；若无电力，可用丙烷罐/发电机汽油。室外明火被禁止（过高风险）。</div>
+        <div class=\"row\" style=\"margin:10px 0\"><div class=\"pill\">餐数：${S.meals}</div><div class=\"pill\">饮水：${S.waterL}L</div><div class=\"pill\">丙烷：${S.propane}</div><div class=\"pill\">汽油：${S.gasGal.toFixed(1)} gal</div></div>
+        <table><tbody>${rows}</tbody></table>
+      </div>
+      <div class=\"card\">
+        <h3>提示</h3>
+        <div class=\"notice\">若无电/燃料，只能吃生食，精神 -10，并提升感染风险。</div>
+      </div>
+    </div>
+  `;
+}
+
+function cook(id){
+  const r = RECIPES.find(x=>x.id===id); if(!r) return; if(S.meals < r.mealCost) return alert('餐数不足');
+  let usedFuel = false;
+  if(r.energy==='power'){ if(!powerAvailable()) return alert('需要电力'); }
+  else if(r.energy==='cook'){
+    if(!powerAvailable()){
+      if(S.propane>0){ S.propane--; usedFuel=true; }
+      else if(S.gasGal>=0.5){ S.gasGal-=0.5; usedFuel=true; }
+      else return alert('需要丙烷或汽油');
+    }
+  }
+  S.meals -= r.mealCost; 
+  let moodGain=r.mood;
+  if(S.team.find(t=>t.type==='chef')) moodGain = Math.round(moodGain*1.1);
+  S.mood = Math.min(100, S.mood + moodGain);
+
+  // 吃饭恢复体力
+  let staGain = 10;
+  S.stamina = Math.min(100, S.stamina + staGain);
+
+  addLog(`烹饪完成：${r.name}（精神 +${moodGain} · 体力 +${staGain}${usedFuel?' · 消耗燃料':''}）`);
+  save(); render();
+}
+
+
+// ======== 活动 ========
+
+function renderActions(box){
+  box.innerHTML = `
+    <div class="grid">
+      <div class="card">
+        <h3>🎣 钓鱼（湖边）</h3>
+        <div class="muted">需要：湖边 house + 钓鱼竿；2h ≈ 1~3 餐，少量提升心情。</div>
+        <button class="btn small" onclick="goFish()">钓鱼 2h</button>
+      </div>
+      <div class="card">
+        <h3>🌱 种田</h3>
+        <div>地块：${S.garden.plots} · 进度：${S.garden.progress}% · 技能：${S.garden.skill?'已学':'未学'}</div>
+        <div class="row"><button class="btn small" onclick="setupGarden()">开垦地块(2h)</button><button class="btn small" onclick="tendGarden()">照料浇灌(2h)</button><button class="btn small" onclick="harvest()">收获</button></div>
+      </div>
+      <div class="card">
+        <h3>📚 学习</h3>
+        <div class="muted">阅读《家庭园艺入门》可提升种田存活率；2h 学习 1 次。</div>
+        <button class="btn small" onclick="study('book_garden')">学习园艺 2h</button>
+      </div>
+      <div class="card">
+        <h3>🛡️ 训练（安全）</h3>
+        <div class="muted">整理装备、加固门窗、基础体能；2h，风险 -5，体力 -4。</div>
+        <button class="btn small" onclick="train()">训练 2h</button>
+      </div>
+      <div class="card">
+        <h3>🚗 外出搜寻</h3>
+        <div class="muted">3h 高风险行动：可能获得物资/燃料/工具，也可能遭遇丧尸或敌对幸存者。</div>
+        <button class="btn small" onclick="scavenge()">搜寻 3h</button>
+      </div>
+      <div class="card">
+        <h3>🎯 打猎</h3>
+        <div class="muted">3h；基础 30% 成功率，若有狗 +20%。成功获得 2~5 餐，失败可能略增风险。</div>
+        <button class="btn small" onclick="hunt()">打猎 3h</button>
+      </div>
+      <div class="card">
+        <h3>🍽️ 去餐馆吃饭（仅末日前）</h3>
+        <div class="muted">末日前的三天可外出餐馆用餐；1h；$20；精神 +15；仅 Day &lt; 0 可用。</div>
+        <button class="btn small" onclick="eatOut()">餐馆用餐 1h</button>
+      </div>
+      <div class="card">
+        <h3>💡 提示</h3>
+        <ul class="muted" style="margin:0 0 0 18px">
+          <li>钓鱼需要先在 Walmart 购买钓鱼竿。</li>
+          <li>末日开始（Day ≥ 0）后，采购渠道关闭，餐馆也不再营业。</li>
+          <li>车辆容量超出会额外消耗 1 小时。</li>
+          <li>风险 &gt; 50 时，可能遭遇幸存者或强化丧尸。</li>
+        </ul>
+      </div>
+    </div>
+  `;
+}
+
+function hunt(){ 
+  if(!needHours(3, +6)) return; 
+  let p = 0.30; 
+  if(S.pet==='dog') p += 0.20; 
+  if(Math.random()<p){
+    // 收获鹿肉：解锁烤鹿肉菜谱
+    const cuts = 1 + Math.floor(Math.random()*2); // 1~2 份生鹿肉
+    S.inventory.venison_raw = (S.inventory.venison_raw||0) + cuts;
+    S.usedSlots += cuts; 
+    S.unlocks.grill_venison = true;
+    const gain = 2 + Math.floor(Math.random()*4); // 2~5 餐（同时获得一些可即食餐数）
+    S.meals += gain;
+    S.mood = Math.min(100, S.mood + 3);
+    showMsg('打猎成功','获得生鹿肉 ×'+cuts+'，并解锁「烤鹿肉」。另得餐数 +'+gain+'。');
+    addLog(`打猎成功：生鹿肉 +${cuts} · 餐数 +${gain} · 精神 +3`);
+  } else { 
+    S.risk = Math.min(100, S.risk + 5);
+    addLog('打猎无功而返，风险 +5');
+  }
+  save(); render(); 
+}
+
+
+function eatOut(){
+  if(curDayAdj()>=0) return alert('末日已开始，餐馆已停业。');
+  if(S.money<20) return alert('资金不足');
+  if(!needHours(1, +2)) return;
+  S.money -= 20;
+  S.mood = Math.min(100, S.mood + 15);
+  S.stamina = Math.min(100, S.stamina + 20);
+  S.hunger = Math.min(100, S.hunger + 20);
+  addLog('外出餐馆用餐：$20，精神 +15 · 体力 +20 · 饥饿值 +20');
+  save(); render();
+}
+
+function goFish(){ if(S.baseType!=='lake') return alert('需要湖边 house'); if(!(S.inventory.fishing_rod>0)) return alert('缺少钓鱼竿'); if(!needHours(2, +3)) return; const gain=1+Math.floor(Math.random()*3);
+  // 同时获得生鱼，解锁烤鱼
+  const fish = 1 + Math.floor(Math.random()*2); // 1~2 条
+  S.inventory.fish_raw = (S.inventory.fish_raw||0) + fish;
+  S.usedSlots += fish;
+  S.unlocks.grill_fish = true;
+  S.meals += gain;
+  S.mood=Math.min(100,S.mood+2);
+  showMsg('钓鱼成功','获得生鱼 ×'+fish+'，并解锁「烤鱼」。另得餐数 +'+gain+'。');
+  addLog(`钓鱼收获 ${gain} 餐 · 生鱼 +${fish}`); save(); render(); }
+function setupGarden(){ if(!(S.inventory.seeds>0)) return alert('缺少种子'); if(!needHours(2, +2)) return; S.garden.plots+=1; S.inventory.seeds--; S.usedSlots-=shopItemSlot('seeds'); addLog('开垦 1 个地块。'); save(); render(); }
+function tendGarden(){ if(S.garden.plots<=0) return alert('没有地块'); if(S.waterL<1) return alert('需要至少 1L 水'); if(!needHours(2, +1)) return; const eff = S.garden.skill? 20:10; S.garden.progress=Math.min(100,S.garden.progress+eff); S.waterL-=1; addLog(`照料菜地，进度 +${eff}%。`); save(); render(); }
+function harvest(){ if(S.garden.progress<100) return alert('还未成熟'); const gain= S.garden.plots * (S.garden.skill? 10:7); S.meals+=gain; S.garden.progress=0; addLog(`收获蔬菜：+${gain} 餐。`); save(); render(); }
+function study(bookId){ if(!(S.inventory[bookId]>0)) return alert('缺少书籍'); if(!needHours(2, 0)) return; if(bookId==='book_garden') { S.garden.skill=true; addLog('学习园艺完成，耕作效率提升。'); } save(); render(); }
+function train(){ if(!needHours(2, -5)) return; addLog('训练完成：风险 -5。'); save(); render(); }
+function scavenge(){ if(!needHours(3, +12)) return; const roll=Math.random(); if(roll<0.25){ const gain= 1+Math.floor(Math.random()*3); S.meals+=gain; addLog(`找到废弃食品：+${gain} 餐。`);} else if(roll<0.45){ S.waterL+=3; addLog('找到瓶装水：+3L。'); } else if(roll<0.6){ S.gasGal+=2; addLog('在废弃加油站虹吸：汽油 +2gal。'); } else if(roll<0.75){ if(S.wep.melee||S.wep.handgun||S.wep.rifle){ addLog('遭遇劫匪但被你吓退。'); } else { addLog('遭遇劫匪，损失少量物资，精神 -5。'); S.mood=Math.max(0,S.mood-5); S.usedSlots=Math.max(0,S.usedSlots-2); } } else if(roll<0.9){ addLog('空无一物，白忙活一场。'); } else {
+    addLog('丧尸围攻！你仓皇撤退，体力 -10，精神 -8。'); S.stamina=Math.max(0,S.stamina-10); S.mood=Math.max(0,S.mood-8);
+  }
+  save(); render(); }
+
+// ======== 同伴/宠物 ========
+const PRE_DAY_LIMIT = 0;
+function renderTeam(box){
+  const canRecruit = curDayAdj()<PRE_DAY_LIMIT && S.team.length<2;
+  const teamRows = S.team.map((t,i)=>`<tr><td>${t.name}（${t.typeZh}）</td><td class=\"right\">—</td></tr>`).join('') || '<tr><td>暂无同伴</td><td></td></tr>';
+  box.innerHTML = `
+    <div class=\"grid\">
+      <div class=\"card\">
+        <h3>👥 同伴</h3>
+        <div class=\"muted\">末日前可招募最多 2 位同伴；同伴不会背叛，但会与您产生分歧（以精神小幅消耗体现）。同伴每天也要吃喝。</div>
+        ${canRecruit? `<div class=\"row\" style=\"margin:8px 0\">
+          <button class=\"btn small\" onclick=\"addMate('scholar')\">招募 学霸</button>
+          <button class=\"btn small\" onclick=\"addMate('athlete')\">招募 运动员</button>
+          <button class=\"btn small\" onclick=\"addMate('medic')\">招募 医学生</button>
+          <button class=\"btn small\" onclick=\"addMate('chef')\">招募 厨艺达人</button>
+        </div>` : '<div class=\"pill\">当前不可招募（已过末日前期或已满员）</div>'}
+        <table><tbody>${teamRows}</tbody></table>
+      </div>
+      <div class=\"card\">
+        <h3>🐾 宠物</h3>
+        <div>当前：${S.pet? (S.pet==='dog'?'🐕 小狗':'🐈 小猫') : '未选择'}</div>
+        <div class=\"muted\">宠物每日自动消耗对应的宠物粮：狗 1 天 / 猫 1 天。若宠物粮不足将降低精神度（狗 -10，猫 -5）。</div>
+        <div class=\"muted\">宠物粮需在超市购买（Costco/Walmart），<b>不再存在宠物店</b>。</div>
+        <div class=\"muted\">狗提供 +7 精神且可能带来 +1 风险；猫提供 +5 精神且不引敌。</div>
+      </div>
+    </div>
+  `;
+}
+function addMate(type){
+  const map = {scholar:{name:'学霸', typeZh:'规划减压'}, athlete:{name:'运动员', typeZh:'战斗强'}, medic:{name:'医学生', typeZh:'医疗加成'}, chef:{name:'厨艺达人', typeZh:'料理增益'}};
+  if(S.team.length>=2) return alert('队伍已满');
+  S.team.push({id:Date.now()+''+Math.floor(Math.random()*1000), name:map[type].name, type, typeZh:map[type].typeZh});
+  addLog(`加入同伴：${map[type].name}`); save(); render();
+}
+
+// ======== 仓库 ========
+function renderInv(box){
+  const invRows = Object.entries(S.inventory).sort().map(([id,q])=>{ const item = findItem(id); return `<tr><td>${item?item.name:id}</td><td>${q} ${item?item.unit:''}</td></tr>`; }).join('');
+  box.innerHTML = `<div class=\"grid\"><div class=\"card\"><h3>📦 仓库总览</h3><div class=\"row\"><div class=\"pill ${S.usedSlots>=S.storeCap? 'bad' : ( (S.storeCap-S.usedSlots)/S.storeCap<=0.1? 'warn':'ok')}\">已用 ${S.usedSlots}/${S.storeCap} 格</div><div class=\"pill\">餐数：${S.meals}</div><div class=\"pill\">饮水：${S.waterL} L</div><div class=\"pill\">冷链：${S.coldDays} 天</div><div class=\"pill\">汽油：${S.gasGal.toFixed(1)} gal</div><div class=\"pill\">丙烷：${S.propane}</div><div class=\"pill\">狗粮天数：${S.petFoodDays.dog}</div><div class=\"pill\">猫粮天数：${S.petFoodDays.cat}</div></div></div><div class=\"card\"><h3>清单</h3><table><tbody>${invRows||'<tr><td>暂无物资</td><td></td></tr>'}</tbody></table></div></div>`;
+}
+function findItem(id){ for(const k in SHOPS){ const f = SHOPS[k].items.find(x=>x.id===id); if(f) return f; } const virtualItems={fish_raw:{name:'生鱼',unit:'条'}, venison_raw:{name:'生鹿肉',unit:'份'}, trap:{name:'简易陷阱',unit:'只'}}; return virtualItems[id]||null; }
+
+// ======== 睡觉/日结 ========
+
+function sleepNow(){
+  const curH = hourMod();
+  const curD = curDayAdj();
+  // Determine wake day/time
+  const wakeDay = (curH < 8) ? curD : (curD + 1);
+  const sleepH = (curH < 8) ? (8 - curH) : ((24 - curH) + 8);
+
+  const staGain = sleepH>=8? 50 : sleepH>=4? 25 : 10;
+  S.stamina = Math.min(100, S.stamina + staGain);
+
+  // 每日基础精神消耗
+  let moodDrop = 5;
+  if(!S.toilet) moodDrop += 10;
+  if(S.team.find(t=>t.type==='scholar')) moodDrop = Math.max(0, moodDrop-1);
+
+  // 每日食水（玩家 + 同伴）
+  let needMeals = 2 + S.team.length;
+  let needWater = 3 + S.team.length*0.5;
+  let ate = false;
+
+  if(S.meals>=needMeals){ S.meals -= needMeals; ate = true; S.stamina = Math.min(100, S.stamina + 15); addLog('进食：体力 +15'); } 
+  else { S.stamina = Math.max(0, S.stamina - 10); addLog('饥饿影响体力 -10'); moodDrop += 5; }
+
+  if(S.waterL>=needWater){ S.waterL -= needWater; } 
+  else { S.stamina = Math.max(0, S.stamina - 20); addLog('缺水影响体力 -20'); moodDrop += 5; }
+
+  // 饥饿值与饿死倒计时
+  if(ate){ S.hunger = Math.min(100, S.hunger + 10); } else { S.hunger = Math.max(0, S.hunger - 35); }
+  if(S.hunger<=0){
+    S.starveDays = (S.starveDays||0) + 1;
+    addLog(`极度饥饿（第 ${S.starveDays}/3 天）`);
+  } else {
+    S.starveDays = 0;
+  }
+
+  // 宠物
+  if(S.pet==='dog'){
+    S.mood = Math.min(100, S.mood + 7);
+    if(S.petFoodDays.dog>0) { S.petFoodDays.dog -= 1; }
+    else { S.mood = Math.max(0, S.mood - 10); addLog('狗粮不足，小狗饥饿，精神 -10'); }
+  }
+  if(S.pet==='cat'){
+    S.mood = Math.min(100, S.mood + 5);
+    if(S.petFoodDays.cat>0) { S.petFoodDays.cat -= 1; }
+    else { S.mood = Math.max(0, S.mood - 5); addLog('猫粮不足，小猫饥饿，精神 -5'); }
+  }
+
+  // 被动收益
+  if(S.baseType==='lake') { S.waterL += 2; addLog('湖边取水：+2L'); }
+  if(S.baseType==='suburb') { S.meals += 1; addLog('郊外采集/打猎：+1 餐'); }
+
+  // 冷链
+  if(powerAvailable() && S.freezer){ S.coldDays = Math.min(7, S.coldDays + 1); } else { if(S.coldDays>0) S.coldDays -= 1; }
+  if(S.coldDays<=0){
+    const spoilKeys = ['eggs60','cheese2k','freezer_meat'];
+    spoilKeys.forEach(k=>{ const n=S.inventory[k]||0; if(n>0){ const lost=Math.ceil(n*0.5); S.inventory[k]=Math.max(0,n-lost); if(S.inventory[k]===0) delete S.inventory[k]; addLog(`${findItem(k)?.name||k} 变质，损失 ${lost}`); }});
+  }
+
+  // 随机事件（高风险偏向幸存者/丧尸）
+  let riskNow = S.risk; if(S.skills.guard) riskNow = Math.max(0,riskNow-5);
+  const p = Math.min(0.6, riskNow/100); 
+  if(Math.random()<p){ 
+    let cand = EVENTS.filter(e=>riskNow>=e.minRisk);
+    if(riskNow>50){ cand = cand.filter(e=> e.id==='survivor' || e.id==='zombie_evo'); if(cand.length===0) cand = EVENTS; }
+    const ev = cand[Math.floor(Math.random()*cand.length)]; 
+    if(ev){ ev.effect(S); addLog(`事件：${ev.text}`); if(S.wep.handgun||S.wep.rifle||S.wep.melee) { addLog('你的防身装备让局面可控。'); S.risk=Math.max(0,S.risk-5); } } 
+  }
+
+  // 团队分歧
+  if(S.team.length && Math.random()<0.4){ addLog('团队分歧：是否外出搜寻？精神 -2'); moodDrop += 2; }
+
+  // 电网逐步断电
+  if(wakeDay>=0 && Math.random()<0.4) S.gridOn=false;
+
+  // 精神结算
+  S.mood = Math.max(0, S.mood - moodDrop);
+
+  // 醒来
+  S.day = wakeDay; 
+  S.hour = 8; 
+  S.hoursLeft = 12; 
+  S.allowOver=false; 
+  S.news = WORLD_NEWS[Math.floor(Math.random()*WORLD_NEWS.length)];
+
+  if(S.mood<=0){ alert('精神崩溃，游戏结束'); return resetGame(); }
+  if(S.stamina<=0){ alert('体力耗尽，游戏结束'); return resetGame(); }
+  if(S.starveDays>=3){ alert('因长期饥饿死亡，游戏结束'); return resetGame(); }
+
+  save(); render();
+}
+
+
+function resetGame(){ if(!confirm('重开？当前进度会被清空')) return; S = initState(); save(); render(); }
+
+// ======== 启动 ========
+render();
+</script>
+</body>
+</html>
