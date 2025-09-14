@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>末日囤货生存 · 单文件网页游戏</title>
+  <style>
+    :root{
+      --bg:#0b0f14; --panel:#10161c; --card:#131b23; --line:#232e3a; --text:#f5f7fa; --muted:#9fb0c2;
+      --accent:#ff4d4f; --ok:#14e099; --warn:#ffcc4d; --vio:#6c5ce7;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0b0f14,#0e1420);color:var(--text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,PingFang SC,Helvetica,Arial;}
+    .wrap{max-width:1100px;margin:0 auto;padding:18px}
+    h1{font-size:28px;margin:8px 0 12px 0}
+    .muted{color:var(--muted)}
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
+    @media (min-width:900px){ .grid{grid-template-columns:1fr 1fr} }
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+    .tile{background:#0f1622;border:1px solid var(--line);border-radius:14px;padding:14px}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .col{display:flex;flex-direction:column;gap:10px}
+    .btn{background:#1f2937;color:#fff;border:1px solid #0000;border-radius:12px;padding:10px 14px;cursor:pointer}
+    .btn.primary{background:var(--accent)}
+    .btn.good{background:var(--ok);color:#072}
+    .btn.ghost{background:transparent;border:1px solid var(--line)}
+    .btn.small{padding:6px 10px;border-radius:10px}
+    .stat{display:flex;gap:12px}
+    .kpi{flex:1;min-width:160px;background:#0f1622;border:1px solid var(--line);border-radius:14px;padding:12px}
+    .kpi .lab{font-size:12px;color:var(--muted)}
+    .kpi .num{font-size:24px;font-weight:800}
+    .bar{height:8px;background:#0d121a;border-radius:999px;overflow:hidden}
+    .bar>i{display:block;height:100%;background:linear-gradient(90deg,#ff4d4f,#ff7a45)}
+    .pill{padding:4px 10px;border-radius:999px;font-size:12px}
+    .pill.ok{background:rgba(20,224,153,.18);color:var(--ok)}
+    .pill.warn{background:rgba(255,204,77,.2);color:var(--warn)}
+    .pill.bad{background:rgba(255,77,79,.2);color:#ff6b6b}
+
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+    .tab{padding:10px 14px;border:1px solid var(--line);border-radius:12px;cursor:pointer}
+    .tab.active{background:var(--accent);border-color:transparent}
+
+    table{width:100%;border-collapse:separate;border-spacing:0 10px}
+    th,td{padding:10px 12px}
+    tbody tr{background:#0f1622;border:1px solid var(--line)}
+    tbody tr td:first-child{border-radius:10px 0 0 10px}
+    tbody tr td:last-child{border-radius:0 10px 10px 0}
+    input[type=number]{width:90px;background:#0d1620;border:1px solid var(--line);color:#fff;border-radius:10px;padding:8px}
+    .right{text-align:right}
+
+    .footer{opacity:.6;text-align:center;margin:18px 0 8px}
+    .notice{border-left:4px solid var(--accent);padding-left:10px}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🧟‍♂️ 末日囤货生存 · 网页版（单文件）</h1>
+  <div class="muted">单人回合制 · 本地存档（LocalStorage） · 规则驱动（无后端）</div>
+
+  <!-- 顶部 KPI -->
+  <div class="stat" id="kpi">
+    <div class="kpi"><div class="lab">日期</div><div class="num" id="dayLab"></div><div class="muted" id="hourLab"></div></div>
+    <div class="kpi"><div class="lab">资金（$）</div><div class="num" id="moneyLab"></div><div class="bar"><i id="moneyBar" style="width:50%"></i></div></div>
+    <div class="kpi"><div class="lab">体力</div><div class="num" id="staLab"></div><div class="bar"><i id="staBar" style="width:80%"></i></div></div>
+    <div class="kpi"><div class="lab">今日剩余工时</div><div class="num" id="hoursLeftLab"></div><div class="muted">可透支 <input type="checkbox" id="allowOver">（用睡眠抵扣）</div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" id="tabs"></div>
+
+  <!-- Panels -->
+  <div id="panel"></div>
+
+  <div class="footer">© Survival Web Demo · 保存：自动 · 建议部署到 GitHub Pages</div>
+</div>
+
+<script>
+const LS_KEY = 'survival_web_v1';
+
+// ======== 物资与商店定义 ========
+const SHOPS = {
+  costco: {
+    name:'Costco 食品/生活', travelH:3, unloadH:2,
+    items:[
+      {id:'rice50', name:'大米 50lb', price:35, unit:'袋', slot:10, meals:240},
+      {id:'pasta6', name:'意面 6lb 箱', price:10, unit:'箱', slot:3, meals:30},
+      {id:'canned', name:'罐头 12罐', price:12, unit:'箱', slot:5, meals:24},
+      {id:'bars', name:'能量棒 30条', price:18, unit:'盒', slot:3, meals:30},
+      {id:'water24', name:'瓶装水 24×500ml', price:4, unit:'箱', slot:2, waterL:12},
+      {id:'oil5l', name:'食用油 5L', price:12, unit:'桶', slot:3},
+      {id:'towel', name:'纸巾 整箱', price:18, unit:'箱', slot:5},
+      {id:'trashbag', name:'垃圾袋 200个', price:15, unit:'包', slot:2},
+      {id:'milkpow', name:'奶粉 2.5kg', price:25, unit:'罐', slot:4, meals:25},
+      {id:'eggs60', name:'鸡蛋 60枚', price:12, unit:'盒', slot:4, meals:20, needCold:true},
+      {id:'cheese2k', name:'奶酪 2kg', price:20, unit:'块', slot:5, meals:20, needCold:true},
+    ]
+  },
+  cvs: {
+    name:'CVS 药品', travelH:3, unloadH:1,
+    items:[
+      {id:'pain', name:'止痛药', price:10, unit:'瓶', slot:1},
+      {id:'vit', name:'维生素', price:15, unit:'瓶', slot:1},
+      {id:'alcohol', name:'消毒液 1L', price:8, unit:'瓶', slot:1},
+      {id:'mask', name:'口罩 50只', price:20, unit:'盒', slot:2},
+      {id:'cold', name:'感冒药', price:12, unit:'盒', slot:1},
+      {id:'antinflam', name:'消炎药(OTC)', price:15, unit:'盒', slot:1},
+      {id:'band', name:'创可贴+纱布', price:5, unit:'套', slot:0.5},
+    ]
+  },
+  homedepot: {
+    name:'Home Depot 设备/建材', travelH:3, unloadH:2,
+    items:[
+      {id:'solar', name:'太阳能板套装 1kW', price:2000, unit:'套', slot:30, build:'solar', buildH:2},
+      {id:'battery', name:'储能电池(UPS)', price:1000, unit:'台', slot:20, build:'battery', buildH:0},
+      {id:'gen', name:'发电机(中型)', price:800, unit:'台', slot:20, build:'gen', buildH:2},
+      {id:'handcrank', name:'手摇发电机', price:50, unit:'个', slot:5},
+      {id:'filter', name:'家用净水机', price:200, unit:'台', slot:10, build:'filter', buildH:3},
+      {id:'rain', name:'雨水收集桶 50gal', price:250, unit:'只', slot:20, build:'rain', buildH:2},
+      {id:'board', name:'木板', price:3, unit:'块', slot:1, build:'board'},
+      {id:'wire', name:'铁丝网卷', price:40, unit:'卷', slot:5, build:'wire'},
+      {id:'tools', name:'工具套装', price:40, unit:'套', slot:5},
+      {id:'gascan', name:'汽油桶 5gal 空', price:20, unit:'只', slot:5},
+    ]
+  }
+};
+
+// 将物资映射成“餐数/饮水量”的换算
+const ITEM_EFFECTS = {
+  rice50:{ meals:240 }, pasta6:{meals:30}, canned:{meals:24}, bars:{meals:30}, milkpow:{meals:25},
+  eggs60:{meals:20}, cheese2k:{meals:20}, water24:{waterL:12}
+};
+
+// ======== 初始状态 ========
+function initState(){
+  return {
+    day:-3, hour:8, hoursLeft:12,
+    money:30000,
+    stamina:100, mood:70, hunger:0, thirst:0,
+    allowOver:false,
+    storeCap:500, usedSlots:0, // 家中仓库
+    solar:false, battery:false, gen:false, filter:false, rain:false,
+    boards:0, wires:0,
+    inventory:{},
+    meals:0, waterL:0,
+    log:[{t:ts(), msg:'游戏开始。你提前 3 天获悉疫情，将在 2 天内完成囤货与加固。'}]
+  }
+}
+
+let S = JSON.parse(localStorage.getItem(LS_KEY)) || initState();
+
+// ======== 工具函数 ========
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(S)); }
+function ts(){ return new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
+function fmt(n){ return (n||0).toLocaleString(); }
+function addLog(msg){ S.log.unshift({t:ts(), msg}); if(S.log.length>100) S.log.pop(); }
+
+// ======== UI 渲染 ========
+const TABS = [
+  {id:'dash', name:'仪表盘'},
+  {id:'shop', name:'采购'},
+  {id:'base', name:'庇护所'},
+  {id:'inv',  name:'仓库'}
+];
+let CUR='dash';
+
+function render(){
+  document.getElementById('dayLab').textContent = `Day ${S.day}`;
+  document.getElementById('hourLab').textContent = `当前时间：${S.hour}:00`;
+  document.getElementById('moneyLab').textContent = `$${fmt(S.money)}`;
+  document.getElementById('staLab').textContent = `${S.stamina}/100`;
+  document.getElementById('staBar').style.width = Math.max(0, S.stamina)+'%';
+  document.getElementById('hoursLeftLab').textContent = `${S.hoursLeft}h`;
+  document.getElementById('moneyBar').style.width = Math.min(100, (S.money/30000)*100)+'%';
+  document.getElementById('allowOver').checked = S.allowOver;
+  document.getElementById('allowOver').onchange = (e)=>{ S.allowOver = e.target.checked; save(); };
+
+  // tabs
+  const tabs = document.getElementById('tabs');
+  tabs.innerHTML = '';
+  TABS.forEach(t=>{
+    const b = document.createElement('div');
+    b.className = 'tab'+(CUR===t.id?' active':'');
+    b.textContent = t.name; b.onclick=()=>{ CUR=t.id; renderPanel(); };
+    tabs.appendChild(b);
+  });
+  renderPanel();
+}
+
+function needHours(h){
+  if(S.hoursLeft>=h){ S.hoursLeft -= h; return true; }
+  if(S.allowOver){ // 透支：从今晚睡眠扣
+    const deficit = h - S.hoursLeft; S.hoursLeft = 0; addLog(`透支 ${deficit} 小时，将从今晚睡眠扣除。`); return true;
+  }
+  alert('今天工时不足（可勾选允许透支）'); return false;
+}
+
+// ======== 各面板 ========
+function renderPanel(){
+  const box = document.getElementById('panel');
+  if(CUR==='dash') return renderDash(box);
+  if(CUR==='shop') return renderShop(box);
+  if(CUR==='base') return renderBase(box);
+  if(CUR==='inv')  return renderInv(box);
+}
+
+function renderDash(box){
+  box.innerHTML = `
+    <div class="grid">
+      <div class="card">
+        <h3 style="color:${S.day>=0?'#ff6b6b':'#14e099'}">${S.day>=0?'外界实况':'准备阶段'}</h3>
+        <div class="muted">• 多地爆发抢购冲突 · 电网超负荷 · 仍可外出（Day 0 前更安全）</div>
+        <div class="row" style="margin-top:10px;gap:8px">
+          <button class="btn ghost" onclick="nextHour()">时间 +1h</button>
+          <button class="btn primary" onclick="endDay()">结束当天</button>
+          <button class="btn" onclick="resetGame()">重开</button>
+        </div>
+        <div class="notice" style="margin-top:12px">提示：去商店=3h，装满车另加 1~2h，回家卸货=2h；安装太阳能/净水等在“庇护所”。允许透支可用今晚睡眠抵扣。</div>
+      </div>
+
+      <div class="card">
+        <h3>今日日志</h3>
+        <div id="log"></div>
+      </div>
+    </div>
+  `;
+  const log = document.getElementById('log');
+  log.innerHTML = S.log.map(e=>`<div class="tile"><b>${e.t}</b> — ${e.msg}</div>`).join('');
+}
+
+function renderShop(box){
+  // 店选择 + 购物清单
+  let shopId = 'costco';
+  box.innerHTML = `
+    <div class="card">
+      <div class="row"><h3>🛒 选择商店</h3>
+        <select id="shopSel"></select>
+        <button class="btn ghost small" id="goBtn">出发（3h）</button>
+      </div>
+      <div class="muted">装满车将额外 +1~2h，回家卸货 +2h。</div>
+    </div>
+    <div class="card" id="shopPanel" style="display:none"></div>
+  `;
+  const sel = document.getElementById('shopSel');
+  sel.innerHTML = Object.entries(SHOPS).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join('');
+  sel.onchange = ()=>{ shopId = sel.value; };
+  document.getElementById('goBtn').onclick = ()=>{
+    const shop = SHOPS[shopId];
+    if(!needHours(shop.travelH)) return; S.hour += shop.travelH; addLog(`前往 ${shop.name}（${shop.travelH}h）`);
+    renderShopInner(shopId);
+  };
+}
+
+function renderShopInner(shopId){
+  const wrap = document.getElementById('shopPanel'); wrap.style.display='block';
+  const shop = SHOPS[shopId];
+  const rows = shop.items.map(it=>{
+    return `<tr>
+      <td>${it.name}<div class="muted">$${it.price}/${it.unit} · 占格 ${it.slot}</div></td>
+      <td class="right"><input type="number" min="0" value="0" data-id="${it.id}" class="qty"></td>
+    </tr>`;
+  }).join('');
+  wrap.innerHTML = `
+    <h3>${shop.name}</h3>
+    <table><tbody>${rows}</tbody></table>
+    <div class="row" style="justify-content:space-between">
+      <div>本次预计：<span id="est"></span></div>
+      <div class="row">
+        <button class="btn ghost small" id="calcBtn">重新估算</button>
+        <button class="btn primary" id="buyBtn">结算并返回（含卸货）</button>
+      </div>
+    </div>
+  `;
+
+  const est = ()=>{
+    const qtys = collectQty();
+    let price=0, slots=0, meals=0, water=0;
+    shop.items.forEach(it=>{
+      const q = qtys[it.id]||0; price += q*it.price; slots += q*it.slot;
+      const eff = ITEM_EFFECTS[it.id]||{}; meals += (eff.meals||0)*q; water += (eff.waterL||0)*q;
+    });
+    const extraH = slots>=75?2: (slots>=30?1:0);
+    const totalH = extraH + shop.unloadH;
+    document.getElementById('est').textContent = `花费 $${fmt(price)} · 占格 ${slots} · 额外时间 +${extraH}h（装车） +${shop.unloadH}h（卸货） · 餐数 +${meals} · 水 +${water}L`;
+    return {price, slots, meals, water, extraH, totalH};
+  };
+  const collectQty = ()=>{
+    const o={}; wrap.querySelectorAll('.qty').forEach(i=>{ o[i.dataset.id]=Number(i.value||0); }); return o;
+  };
+  document.getElementById('calcBtn').onclick = est;
+  document.getElementById('buyBtn').onclick = ()=>{
+    const r = est();
+    const needH = r.extraH + shop.unloadH; // 装车+卸货（往返已在出发时扣）
+    if(S.money < r.price) return alert('资金不足');
+    if(S.usedSlots + r.slots > S.storeCap) return alert('仓库容量不足');
+    if(!needHours(needH)) return;
+    S.money -= r.price; S.usedSlots += r.slots; S.meals += r.meals; S.waterL += r.water; S.hour += needH;
+
+    // 写入明细到库存
+    const qtys = collectQty();
+    Object.entries(qtys).forEach(([id,q])=>{ if(!q) return; S.inventory[id]=(S.inventory[id]||0)+q; });
+    addLog(`在 ${shop.name} 采购：$${fmt(r.price)}，占格 +${r.slots}，餐数 +${r.meals}，水 +${r.water}L。`);
+    save(); CUR='dash'; render();
+  };
+  est();
+}
+
+function renderBase(box){
+  box.innerHTML = `
+    <div class="grid">
+      <div class="card">
+        <h3>🏠 庇护所安装/加固</h3>
+        <div class="col">
+          ${buildRow('安装太阳能(2h)','solar','solar',2)}
+          ${buildRow('安装储能电池(0h)','battery','battery',0)}
+          ${buildRow('安装发电机(2h)','gen','gen',2)}
+          ${buildRow('安装净水机(3h)','filter','filter',3)}
+          ${buildRow('架设雨水桶(2h)','rain','rain',2)}
+          ${consRow('封窗用木板 1h/块','board',1)}
+          ${consRow('围栏铁丝网 2h/卷','wire',2)}
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>当前状态</h3>
+        <div>太阳能：${S.solar?'<span class=pill ok>已安装</span>':'未装'}</div>
+        <div>储能电池：${S.battery?'<span class=pill ok>已就位</span>':'未装'}</div>
+        <div>发电机：${S.gen?'<span class=pill warn>备用</span>':'未装'}</div>
+        <div>净水：${S.filter?'<span class=pill ok>✔️</span>':'未装'}</div>
+        <div>雨水收集：${S.rain?'<span class=pill ok>✔️</span>':'未装'}</div>
+        <div>木板：${S.inventory.board||0} 块 · 已封 ${S.boards} 块</div>
+        <div>铁丝网：${S.inventory.wire||0} 卷 · 已布置 ${S.wires} 卷</div>
+        <div class="muted" style="margin-top:8px">提示：安装会消耗今天工时，可在顶部勾选“允许透支”用今晚睡眠抵扣。</div>
+      </div>
+    </div>
+  `;
+}
+
+function buildRow(label, key, needItem, h){
+  const has = S[ key ];
+  const own = (S.inventory[needItem]||0) > 0;
+  const btn = has? '<span class="pill ok">已完成</span>' : (own? `<button class=\"btn small\" onclick=\"doBuild('${key}',${h},'${needItem}')\">安装（${h}h）</button>`: '<span class="pill bad">缺少材料</span>');
+  return `<div class="tile row" style="justify-content:space-between"><div>${label}</div><div>${btn}</div></div>`;
+}
+function consRow(label, itemId, h){
+  const own = S.inventory[itemId]||0;
+  const btn = own>0? `<button class=\"btn small\" onclick=\"consumeItem('${itemId}',${h})\">使用 1（${h}h）</button>` : '<span class="pill bad">库存不足</span>';
+  return `<div class="tile row" style="justify-content:space-between"><div>${label}</div><div>${btn}</div></div>`;
+}
+function doBuild(key, h, itemId){
+  if(!needHours(h)) return; S.hour += h; S.inventory[itemId]--; if(S.inventory[itemId]<=0) delete S.inventory[itemId];
+  S.usedSlots -= shopItemSlot(itemId); S[key]=true; addLog(`完成：${key} 安装（${h}h）`); save(); render();
+}
+function consumeItem(itemId, h){
+  if(!needHours(h)) return; S.hour += h; S.inventory[itemId]--; if(S.inventory[itemId]<=0) delete S.inventory[itemId];
+  S.usedSlots -= shopItemSlot(itemId);
+  if(itemId==='board') S.boards++; if(itemId==='wire') S.wires++;
+  addLog(`使用 ${itemId} 1 个（${h}h）`); save(); render();
+}
+function shopItemSlot(id){
+  for(const k in SHOPS){ const f = SHOPS[k].items.find(x=>x.id===id); if(f) return f.slot; }
+  return 0;
+}
+
+function renderInv(box){
+  const invRows = Object.entries(S.inventory).sort().map(([id,q])=>{
+    const item = findItem(id);
+    return `<tr><td>${item?item.name:id}</td><td>${q} ${item?item.unit:''}</td></tr>`;
+  }).join('');
+  box.innerHTML = `
+    <div class="grid">
+      <div class="card">
+        <h3>📦 仓库总览</h3>
+        <div class="row">
+          <div class="pill ${S.usedSlots>=S.storeCap? 'bad' : ( (S.storeCap-S.usedSlots)/S.storeCap<=0.1? 'warn':'ok')}">已用 ${S.usedSlots}/${S.storeCap} 格</div>
+          <div class="pill">餐数可用：${S.meals}</div>
+          <div class="pill">饮水：${S.waterL} L</div>
+        </div>
+      </div>
+      <div class="card"><h3>清单</h3><table><tbody>${invRows||'<tr><td>暂无物资</td><td></td></tr>'}</tbody></table></div>
+    </div>
+  `;
+}
+function findItem(id){ for(const k in SHOPS){ const f = SHOPS[k].items.find(x=>x.id===id); if(f) return f; } return null; }
+
+// ======== 日期/结算 ========
+function nextHour(){ if(!needHours(1)) return; S.hour++; save(); render(); }
+
+function endDay(){
+  // 睡眠与透支结算：基础睡眠 8h，若透支 X 小时，则睡眠 = 8 - X，体力回复降低
+  const overtime = Math.max(0, 12 - S.hoursLeft); // 今天多干的
+  const sleepH = Math.max(0, 8 - overtime);
+  const staGain = sleepH>=8? 50 : sleepH>=4? 25 : 10;
+  S.stamina = Math.min(100, S.stamina + staGain);
+
+  // 每日自然消耗
+  const needMeals = 2; const needWater = 3; // 2餐, 3L 水
+  if(S.meals>=needMeals){ S.meals -= needMeals; } else { S.stamina -= 10; addLog('饥饿影响体力 -10'); }
+  if(S.waterL>=needWater){ S.waterL -= needWater; } else { S.stamina -= 20; addLog('缺水影响体力 -20'); }
+
+  // 进日
+  S.day += 1; S.hour = 8; S.hoursLeft = 12; S.allowOver=false;
+  addLog(`进入 Day ${S.day}。睡眠 ${sleepH} 小时，体力 +${staGain}。`);
+  if(S.stamina<=0){ alert('体力耗尽，游戏结束'); resetGame(); return; }
+  save(); render();
+}
+
+function resetGame(){ if(!confirm('重开？当前进度会被清空')) return; S = initState(); save(); render(); }
+
+// ======== 启动 ========
+render();
+</script>
+</body>
+</html>
