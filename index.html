@@ -552,14 +552,14 @@ function cook(id){
 // ======== 室外风险与封锁 ========
 
 function checkOutdoorAttack(ctx='室外行动'){
+  // Day < 0 不触发
+  if(curDayAdj() < 0) return;
+
   if(Math.random() < 0.5){
-    const armed = (S.wep.handgun||S.wep.rifle||S.wep.melee);
-    if(armed){
-      if(Math.random() < 0.3){
-        resolveAttack('raider', ctx);
-      }else{
-        resolveAttack('zombie', ctx);
-      }
+    if(S.wep.handgun||S.wep.rifle||S.wep.melee){
+      addLog(ctx+'时遭遇袭击，但你成功抵御。风险 -3');
+      S.risk = Math.max(0, S.risk - 3);
+      showMsg('遭遇袭击', '你被丧尸/劫匪围上，但凭借装备成功击退。');
     }else{
       addLog(ctx+'时遭遇袭击：体力 -10 · 心情 -8 · 风险 +10');
       S.stamina = Math.max(0, S.stamina - 10);
@@ -569,6 +569,7 @@ function checkOutdoorAttack(ctx='室外行动'){
     }
   }
 }
+
 
 function guardIndoorOnly(){
   if(S.lockdown){ alert('今日处于室内避险，仅允许学习/训练等室内活动。'); return true; }
