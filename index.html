@@ -1,6 +1,34 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
+  <!-- 放在 <head> 里，且必须在你的任何 app 脚本之前 -->
+<script>
+/* 解决：S/LS_KEY 可能未定义 + iOS localStorage 可能抛错 */
+(function () {
+  try {
+    if (typeof window.LS_KEY === 'undefined') window.LS_KEY = 'survival_save_v1';
+  } catch (e) { window.LS_KEY = 'survival_save_v1'; }
+
+  try {
+    if (typeof window.S === 'undefined') {
+      var raw = localStorage.getItem(window.LS_KEY);
+      window.S = raw ? JSON.parse(raw) : { pet: null };
+    }
+  } catch (e) {
+    // iOS 私密模式/配额会抛错
+    window.S = { pet: null };
+  }
+
+  // 提前占位 render，避免“还没定义就被调用”
+  let realRender = null, queued = false;
+  Object.defineProperty(window, 'render', {
+    configurable: true, enumerable: true,
+    get() { return realRender || function(){ queued = true; }; },
+    set(fn) { realRender = fn; if (queued) { try { realRender(); } catch(_){} } }
+  });
+})();
+</script>
+
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>末日囤货生存 · 网页版（完整版·自带宠物）</title>
