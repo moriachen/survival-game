@@ -1,0 +1,42 @@
+
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Touch Debug</title>
+<style>
+html,body{margin:0;padding:0;font-family:system-ui, -apple-system, Segoe UI, Roboto, PingFang SC, Microsoft YaHei, sans-serif;}
+#log{position:fixed;inset:0;overflow:auto;padding:12px;line-height:1.4;background:#111;color:#eee;}
+button{font-size:18px;padding:10px 14px;margin:8px;border-radius:10px;border:1px solid #888;touch-action:manipulation}
+.flex{display:flex;flex-wrap:wrap;gap:8px;padding:12px;position:sticky;top:0;background:#222}
+.tag{padding:4px 8px;border:1px solid #555;border-radius:6px}
+.event{color:#8ad}
+.time{color:#aaa}
+.target{color:#dad}
+</style>
+</head>
+<body>
+<div class="flex">
+  <button id="btnA" onclick="alert('A clicked')">按钮A（有 onclick）</button>
+  <button id="btnB">按钮B（JS 监听）</button>
+  <div id="divC" role="button" style="padding:10px 14px;border:1px dashed #aaa;border-radius:10px">DIV（role=button）</div>
+  <a id="linkD" href="#" onclick="return false;">链接D（阻止默认）</a>
+</div>
+<pre id="log"></pre>
+<script>
+const log = document.getElementById('log');
+function add(msg){
+  const t = new Date().toLocaleTimeString();
+  log.textContent = `[${t}] ` + msg + "\n" + log.textContent;
+}
+['pointerdown','pointerup','touchstart','touchend','click'].forEach(ev=>{
+  window.addEventListener(ev, e=>{
+    const tgt = (e.target && (e.target.id || e.target.tagName)) || 'unknown';
+    add(ev + ' → ' + tgt);
+  }, {passive:false, capture:true});
+});
+document.getElementById('btnB').addEventListener('click', ()=>add('按钮B: click 触发'));
+</script>
+</body>
+</html>
