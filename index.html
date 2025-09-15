@@ -1,31 +1,19 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-  <!-- 放在 <head> 里，且必须在你的任何 app 脚本之前 -->
-<script>
-/* 解决：S/LS_KEY 可能未定义 + iOS localStorage 可能抛错 */
-(function () {
-  try {
-    if (typeof window.LS_KEY === 'undefined') window.LS_KEY = 'survival_save_v1';
-  } catch (e) { window.LS_KEY = 'survival_save_v1'; }
 
+<script>
+/* === Early init: ensure S/LS_KEY exist to avoid TDZ on mobile === */
+(function () {
+  try { if (typeof window.LS_KEY === 'undefined') window.LS_KEY = 'survival_save_v1'; } catch (e) { window.LS_KEY = 'survival_save_v1'; }
   try {
     if (typeof window.S === 'undefined') {
       var raw = localStorage.getItem(window.LS_KEY);
       window.S = raw ? JSON.parse(raw) : { pet: null };
     }
   } catch (e) {
-    // iOS 私密模式/配额会抛错
     window.S = { pet: null };
   }
-
-  // 提前占位 render，避免“还没定义就被调用”
-  let realRender = null, queued = false;
-  Object.defineProperty(window, 'render', {
-    configurable: true, enumerable: true,
-    get() { return realRender || function(){ queued = true; }; },
-    set(fn) { realRender = fn; if (queued) { try { realRender(); } catch(_){} } }
-  });
 })();
 </script>
 
@@ -1022,62 +1010,21 @@ function resetGame(){ if(!confirm('重开？当前进度会被清空')) return; 
 render();
 </script>
 
-<!-- === Mobile/Desktop bootstrap: wait for modules to init, then safe-init state and render === -->
 <script>
-(function(){
-  function ready(fn){ if (document.readyState!=='loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
-  ready(function(){
-    // Give module scripts a tick to run and initialize let/const to avoid TDZ
-    setTimeout(function(){
-      try{
-        // Safe LS_KEY
-        if (typeof window.LS_KEY === 'undefined') window.LS_KEY = 'survival_save_v1';
-        // Safe state S
-        if (typeof window.S === 'undefined') {
-          try{
-            var raw = localStorage.getItem(window.LS_KEY);
-            window.S = raw ? JSON.parse(raw) : { pet: null };
-          }catch(e){
-            window.S = { pet: null };
-          }
-        }
-        // First render if available
-        if (typeof window.render === 'function') {
-          try{ window.render(); }catch(e){ console.error('render failed:', e); }
-        }
-      }catch(e){
-        console.error('bootstrap failed:', e);
-      }
-    }, 0);
-  });
-  // Better global error reporting
-  window.addEventListener('error', function(e){ console.error('GlobalError', e.message, e.error && e.error.stack); }, true);
-  window.addEventListener('unhandledrejection', function(e){ console.error('UnhandledRejection', e.reason && (e.reason.stack || e.reason)); }, true);
-})();
-</script>
-<!-- 放在 </body> 前，确保所有脚本都已加载 -->
-<script>
+/* === Safe first render: delay until all scripts initialized === */
 (function(){
   function safeFirstRender(tries){
     try {
-      if (typeof window.render === 'function') {
-        window.render();            // 尝试首渲染
-        return;
-      }
+      if (typeof window.render === 'function') { window.render(); return; }
     } catch (e) {
-      // 典型：ReferenceError: Cannot access uninitialized variable.
       if (e instanceof ReferenceError && (tries||0) < 50) {
-        return setTimeout(() => safeFirstRender((tries||0)+1), 20); // 继续等待初始化完成
+        return setTimeout(() => safeFirstRender((tries||0)+1), 20);
       }
-      // 其它错误直接抛给控制台，便于定位
       console.error('render failed:', e);
       return;
     }
-    // render 还没挂上 → 等一下继续试
     if ((tries||0) < 50) setTimeout(() => safeFirstRender((tries||0)+1), 20);
   }
-
-  // 等 DOM 就绪后开始尝试（给 module/异步初始化时间）
   if (document.readyState !== 'loading') safeFirstRender(0);
   else document.addEventListener('DOMContentLoaded', () => safeFirstRender(0));
 })();
