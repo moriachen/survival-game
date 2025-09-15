@@ -63,6 +63,29 @@ button, .btn, .tab, .tile, [role="button"]{
   cursor: pointer;
 }
 
+
+/* --- Dialog robust mobile styling & fallback --- */
+dialog{
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 90vw;
+  width: min(420px, 90vw);
+  max-height: 80vh;
+  overflow: auto;
+  z-index: 10001;
+}
+dialog._backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 10000;
+}
+@supports (height: 100svh){
+  dialog{ max-height: 80svh; }
+}
+
 </style>
 </head>
 <body>
@@ -314,7 +337,7 @@ function render(){
 
   enableMobilePressRoot();
   // 初次开局：要求选择宠物
-  if(S.pet===null){ const d=document.getElementById('petDlg'); d.showModal(); document.getElementById('chooseDog').onclick=()=>{ S.pet='dog'; addLog('你选择了小狗作为同伴。'); save(); d.close(); render(); }; document.getElementById('chooseCat').onclick=()=>{ S.pet='cat'; addLog('你选择了小猫作为同伴。'); save(); d.close(); render(); }; }
+  if(S.pet===null){ const d=document.getElementById('petDlg'); d.showModal(); document.getElementById('chooseDog').onclick=()=>{ S.pet='dog'; addLog('你选择了小狗作为同伴。'); save(); __closeDialog('petDlg'); render(); }; document.getElementById('chooseCat').onclick=()=>{ S.pet='cat'; addLog('你选择了小猫作为同伴。'); save(); __closeDialog('petDlg'); render(); }; }
 }
 
 function renderPanel(){
@@ -1034,6 +1057,56 @@ function __unlockAudioOnce(){
 }
 window.addEventListener('pointerdown', __unlockAudioOnce, {once:true});
 window.addEventListener('touchstart', __unlockAudioOnce, {once:true});
+
+
+// --- Minimal <dialog> polyfill/fallback for iOS/Android older builds ---
+(function(){
+  var supported = !!(window.HTMLDialogElement && HTMLDialogElement.prototype.showModal);
+  function ensureBackdrop(dlg){
+    if(dlg._backdropEl) return dlg._backdropEl;
+    var b = document.createElement('div');
+    b.className = ' _backdrop'; // styled via dialog._backdrop CSS
+    // Use a specific selector 'dialog._backdrop' so styles apply
+    b.setAttribute('data-dlg-backdrop','1');
+    b.addEventListener('click', function(){
+      // close on outside tap
+      if(dlg.close) dlg.close(); else dlg.removeAttribute('open');
+      b.remove();
+      dlg._backdropEl = null;
+    }, {passive:true});
+    dlg._backdropEl = b;
+    return b;
+  }
+  function openFallback(dlg){
+    dlg.setAttribute('open','');
+    var b = ensureBackdrop(dlg);
+    document.body.appendChild(b);
+  }
+  function closeFallback(dlg){
+    dlg.removeAttribute('open');
+    if(dlg._backdropEl){ dlg._backdropEl.remove(); dlg._backdropEl = null; }
+  }
+  if(!supported){
+    document.querySelectorAll('dialog').forEach(function(d){
+      // Patch methods
+      d.showModal = function(){ openFallback(d); };
+      d.close = function(){ closeFallback(d); };
+    });
+  }
+  // Guard: if showModal exists but throws, wrap with try/catch and fallback
+  window.__openDialog = function(id){
+    var d = document.getElementById(id);
+    if(!d) return;
+    try{ d.showModal(); }
+    catch(e){ openFallback(d); }
+  };
+  window.__closeDialog = function(id){
+    var d = document.getElementById(id);
+    if(!d) return;
+    try{ __closeDialog('petDlg'); }
+    catch(e){ closeFallback(d); }
+  };
+})();
 
 </script>
 
