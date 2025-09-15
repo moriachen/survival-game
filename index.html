@@ -86,6 +86,57 @@ dialog._backdrop {
   dialog{ max-height: 80svh; }
 }
 
+
+/* --- Custom Modal (no <dialog> dependency) --- */
+#customBackdrop{ position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:99997; display:none; }
+#customModal{
+  position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+  width:min(420px, 90vw); max-height:80svh; overflow:auto;
+  background:#111; color:#eee; border-radius:14px; padding:16px; z-index:99998; display:none;
+  box-shadow:0 10px 30px rgba(0,0,0,.6);
+}
+#customModal h3{ margin:0 0 8px 0; font-size:18px; }
+#customModal .row{ display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; }
+#customModal button{ flex:1 1 45%; padding:10px 12px; border-radius:12px; border:1px solid #555; touch-action:manipulation; }
+#customClose{ position:absolute; right:10px; top:10px; border:none; background:transparent; color:#aaa; font-size:20px; }
+
+
+/* --- Keep-desktop-layout: global polish for mobile --- */
+:root{
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+/* avoid iOS auto-zoom on inputs <16px */
+input, select, textarea { font-size: 16px; }
+/* app scaler container */
+#app-scale{
+  transform-origin: top center;
+  will-change: transform;
+}
+/* prevent body scrolling jump when scaled */
+html, body { height: 100%; }
+body { overflow-x: hidden; }
+
+
+/* --- Aggressive Mobile Unblock (only on touch devices) --- */
+@media (hover: none) and (pointer: coarse){
+  /* 1) Common overlay/backdrop names彻底禁用点击拦截 */
+  .overlay, .mask, .backdrop, .intro, .shade, .modal-bg, .fullscreen, .cover {
+    pointer-events: none !important;
+  }
+  [class*="overlay"], [class*="Overlay"], [class*="mask"], [class*="Mask"], [class*="backdrop"], [class*="Backdrop"] {
+    pointer-events: none !important;
+  }
+  /* 2) 明确让互动控件可点 */
+  button, [role="button"], .btn, .button, .tab, .tile, a, input, select, textarea, label, .clickable {
+    pointer-events: auto !important;
+  }
+  /* 3) 防止全屏 fixed 层挡手：通用容器也不拦截（除非是互动元素） */
+  .app, .container, .page, .root {
+    pointer-events: auto !important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1163,5 +1214,196 @@ window.addEventListener('touchstart', __unlockAudioOnce, {once:true});
   }
 })();
 </script>
+
+<div id="customBackdrop" aria-hidden="true"></div>
+<div id="customModal" role="dialog" aria-modal="true" aria-labelledby="cmTitle">
+  <button id="customClose" aria-label="关闭">×</button>
+  <h3 id="cmTitle">选择你的宠物</h3>
+  <div>宠物会影响你的玩法：小狗有打猎/震慑加成但会引来注意；小猫不引来丧尸但没有打猎加成。</div>
+  <div class="row">
+    <button id="btnPetDog">选择小狗</button>
+    <button id="btnPetCat">选择小猫</button>
+  </div>
+</div>
+
+
+<script>
+(function(){
+  var bd = document.getElementById('customBackdrop');
+  var md = document.getElementById('customModal');
+  var btnDog = document.getElementById('btnPetDog');
+  var btnCat = document.getElementById('btnPetCat');
+  var btnClose = document.getElementById('customClose');
+
+  function showModal(){
+    if(!bd || !md) return;
+    bd.style.display='block'; md.style.display='block';
+    // prevent background scroll
+    document.documentElement.style.overflow='hidden';
+    document.body.style.overflow='hidden';
+  }
+  function hideModal(){
+    if(!bd || !md) return;
+    bd.style.display='none'; md.style.display='none';
+    document.documentElement.style.overflow='';
+    document.body.style.overflow='';
+  }
+
+  // Expose to global for existing code paths
+  window.__openDialog = function(id){
+    if(id === 'petDlg') { showModal(); }
+    else {
+      // noop for others; keep graceful fallback
+      try{
+        var d = document.getElementById(id);
+        if(d && d.showModal) d.showModal(); else showModal();
+      }catch(e){ showModal(); }
+    }
+  };
+  window.__closeDialog = function(id){
+    if(id === 'petDlg') { hideModal(); }
+    else {
+      try{
+        var d = document.getElementById(id);
+        if(d && d.close) d.close(); else hideModal();
+      }catch(e){ hideModal(); }
+    }
+  };
+
+  function pickPet(type){
+    try{
+      // Try to reach your global state S if present
+      if (typeof S !== 'undefined'){
+        S.pet = (type==='dog') ? 'dog' : 'cat';
+        if (typeof addLog === 'function'){
+          addLog('你选择了' + (type==='dog' ? '小狗' : '小猫') + '作为同伴。');
+        }
+        if (typeof save === 'function') save();
+        if (typeof render === 'function') render();
+      }
+    }catch(e){}
+    hideModal();
+  }
+
+  if(btnDog) btnDog.addEventListener('click', function(){ pickPet('dog'); }, {passive:true});
+  if(btnCat) btnCat.addEventListener('click', function(){ pickPet('cat'); }, {passive:true});
+  if(btnClose) btnClose.addEventListener('click', function(){ hideModal(); }, {passive:true});
+
+  // If first-load needs pet, auto show (safe check)
+  document.addEventListener('DOMContentLoaded', function(){
+    try{
+      if (typeof S !== 'undefined' && (S.pet === null || typeof S.pet === 'undefined')){
+        showModal();
+      }
+    }catch(e){ /* ignore */ }
+  });
+})();
+</script>
+
+
+<script>
+// --- Desktop-identical scaling on mobile (no CSS rewrites needed) ---
+(function(){
+  var DESIGN_WIDTH = 1200; // <= set this to your desktop canvas width
+  var scaleEl;
+
+  function ensureWrapper(){
+    if (scaleEl) return scaleEl;
+    scaleEl = document.getElementById('app-scale');
+    if (!scaleEl){
+      scaleEl = document.createElement('div');
+      scaleEl.id = 'app-scale';
+      // Move all body child nodes (except our script tags inserted later) into wrapper
+      var nodes = Array.from(document.body.childNodes);
+      nodes.forEach(function(n){
+        // keep the wrapper insertion at top; we'll move everything into it
+        if (n.id === 'app-scale') return;
+        document.body.removeChild(n);
+        scaleEl.appendChild(n);
+      });
+      document.body.appendChild(scaleEl);
+    }
+    return scaleEl;
+  }
+
+  function applyScale(){
+    var el = ensureWrapper();
+    var w = window.innerWidth;
+    var scale = Math.min(1, w / DESIGN_WIDTH);
+    el.style.transform = 'scale(' + scale + ')';
+    // Adjust body height to scaled content height to keep scroll working
+    requestAnimationFrame(function(){
+      var r = el.getBoundingClientRect();
+      document.body.style.height = r.height + 'px';
+    });
+  }
+
+  window.addEventListener('resize', applyScale);
+  window.addEventListener('orientationchange', applyScale);
+  window.addEventListener('load', applyScale);
+  document.addEventListener('DOMContentLoaded', applyScale);
+})();
+</script>
+
+
+<script>
+// --- Runtime auto-unblock for top-most full-screen blockers (mobile only) ---
+(function(){
+  var isTouch = matchMedia('(hover: none) and (pointer: coarse)').matches;
+  if(!isTouch) return;
+
+  var unblocked = new WeakSet();
+  function isClickable(el){
+    if(!el) return false;
+    var tag = el.tagName;
+    if(/^(BUTTON|A|INPUT|SELECT|TEXTAREA|LABEL)$/.test(tag)) return true;
+    if(el.getAttribute && (el.getAttribute('role') === 'button')) return true;
+    var cls = (el.className || '') + '';
+    if(/(\bbtn\b|\bbutton\b|\bclickable\b|\btab\b|\btile\b)/i.test(cls)) return true;
+    if(typeof el.onclick === 'function' || el.hasAttribute && el.hasAttribute('onclick')) return true;
+    return false;
+  }
+
+  function looksLikeFullScreen(el){
+    var s = getComputedStyle(el);
+    if(!(s.position === 'fixed' || s.position === 'sticky' || s.position === 'absolute')) return false;
+    var r = el.getBoundingClientRect();
+    var vw = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+    var vh = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+    return (r.width >= vw * 0.9) && (r.height >= vh * 0.9);
+  }
+
+  function tryUnblockAtPoint(x,y){
+    var stack = document.elementsFromPoint(x,y) || [];
+    for(var i=0;i<stack.length;i++){
+      var el = stack[i];
+      if(isClickable(el)) return; // already clickable on top
+      if(unblocked.has(el)) continue;
+      if(looksLikeFullScreen(el)){
+        // only unblock if it's not an obvious modal/dialog
+        if(!(el.tagName === 'DIALOG' || /modal|dialog/i.test(el.className+''))){
+          el.style.pointerEvents = 'none';
+          el.classList.add('auto-unblock');
+          unblocked.add(el);
+          // Stop after unblocking one layer
+          return;
+        }
+      }
+    }
+  }
+
+  var tries = 0, MAX_TRIES = 6;
+  function onTouch(e){
+    if(tries >= MAX_TRIES) return;
+    var t = (e.touches && e.touches[0]) || e;
+    tryUnblockAtPoint(t.clientX, t.clientY);
+    tries++;
+  }
+
+  window.addEventListener('pointerdown', onTouch, {capture:true, passive:false});
+  window.addEventListener('touchstart', onTouch, {capture:true, passive:false});
+})();
+</script>
+
 </body>
 </html>
