@@ -1,34 +1,6 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-
-<script>
-// V11: log to console so we can see it in remote inspector
-console.log('[V11] mobile patch bootstrap starting');
-(function(){
-  try {
-    const _get = localStorage.getItem.bind(localStorage);
-    const _set = localStorage.setItem.bind(localStorage);
-    localStorage.getItem = function(k){ try{ return _get(k); }catch(e){ return null; } };
-    localStorage.setItem = function(k,v){ try{ return _set(k,v); }catch(e){ /* ignore */ } };
-  } catch(e){}
-  try { if (typeof window.LS_KEY === 'undefined') window.LS_KEY = 'survival_save_v1'; } catch(e){ window.LS_KEY = 'survival_save_v1'; }
-  try {
-    if (typeof window.S === 'undefined') {
-      var raw = localStorage.getItem(window.LS_KEY);
-      window.S = raw ? JSON.parse(raw) : { pet: null };
-    }
-  } catch(e){ window.S = { pet: null }; }
-  // render placeholder
-  let __realRender = null, __queued = false;
-  Object.defineProperty(window, 'render', {
-    configurable:true, enumerable:true,
-    get(){ return __realRender || function(){ __queued = true; }; },
-    set(fn){ __realRender = fn; if (__queued) { try{ __realRender(); }catch(_){} } }
-  });
-})();
-</script>
-
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>末日囤货生存 · 网页版（完整版·自带宠物）</title>
@@ -82,25 +54,9 @@ console.log('[V11] mobile patch bootstrap starting');
     dialog{border:none;border-radius:16px;background:#0f1622;color:#fff;padding:18px;max-width:420px}
     dialog::backdrop{background:rgba(0,0,0,.55)}
   button[disabled]{opacity:.55; cursor:not-allowed; filter:grayscale(0.2);} 
-
-/* === V11 VERIFY BANNER (should be VISIBLE if this file is served) === */
-#_verify_banner{
-  position:fixed; left:0; right:0; top:0; z-index:1000000;
-  background:linear-gradient(90deg,#ffd400,#ff6a00);
-  color:#111; font:600 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, PingFang SC, sans-serif;
-  padding:10px 12px; text-align:center; box-shadow:0 2px 10px rgba(0,0,0,.25);
-}
-#_verify_banner small{opacity:.7}
-@media (prefers-color-scheme: dark){
-  #_verify_banner{ color:#000; }
-}
-
 </style>
 </head>
 <body>
-
-<div id="_verify_banner">✅ MOBILE PATCH <b>V11</b> LOADED · 如果你在手机上看不到这一条横幅，说明你线上不是这份文件。<small>（测试地址请带 ?v=v11）</small></div>
->
 <div class="wrap">
   <h1>🧟‍♂️ 末日囤货生存 · 网页版（完整版·自带宠物）</h1>
   <div class="muted">单文件 · 本地存档 · 规则驱动（无后端）</div>
@@ -295,10 +251,16 @@ function initState(){
   }
 }
 
-let S = JSON.parse(localStorage.getItem(LS_KEY)) || initState();
-
+let S = (function(){ 
+  try{ 
+    const raw = localStorage.getItem(LS_KEY); 
+    return raw ? JSON.parse(raw) : initState(); 
+  }catch(e){ 
+    return initState(); 
+  } 
+})(); 
 // ======== 工具 ========
-function save(){ localStorage.setItem(LS_KEY, JSON.stringify(S)); }
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){} }
 function ts(){ 
   const d = curDayAdj(); 
   const h = hourMod(); 
@@ -1037,62 +999,5 @@ function resetGame(){ if(!confirm('重开？当前进度会被清空')) return; 
 // ======== 启动 ========
 render();
 </script>
-
-<script>
-console.log('[V11] late bootstrap');
-(function(){
-  // safe first render
-  let tries = 0;
-  (function tick(){
-    try{
-      if (typeof window.render === 'function'){ console.log('[V11] calling render'); window.render(); return; }
-    }catch(e){
-      console.error('[V11] render failed:', e);
-      if (e instanceof ReferenceError && tries++ < 60) return setTimeout(tick, 33);
-      return;
-    }
-    if (tries++ < 60) setTimeout(tick, 33);
-  })();
-  // dialog guard
-  var proto = window.HTMLDialogElement && HTMLDialogElement.prototype;
-  function fallback(d){
-    if(!d) return;
-    if(!d.hasAttribute('open')) d.setAttribute('open','');
-    var s=d.style; s.position='fixed'; s.left='50%'; s.top='50%'; s.transform='translate(-50%,-50%)'; s.zIndex='10001';
-    var bd=document.createElement('div'); bd.dataset.bd='1';
-    Object.assign(bd.style,{position:'fixed',inset:'0',background:'rgba(0,0,0,.55)',zIndex:'10000'});
-    bd.addEventListener('click', function(){ try{ d.close(); }catch{ d.removeAttribute('open'); } bd.remove(); });
-    document.body.appendChild(bd);
-  }
-  if (proto && !proto.__v11wrapped){
-    var origShow = proto.showModal, origClose = proto.close;
-    proto.showModal = function(){ try{ return origShow.apply(this, arguments); } catch(e){ console.warn('[V11] showModal throws, fallback'); return fallback(this); } };
-    proto.close = function(){ try{ return origClose.apply(this, arguments); } catch(e){ this.removeAttribute('open'); var bd=document.querySelector('[data-bd="1"]'); if(bd) bd.remove(); } };
-    proto.__v11wrapped = true;
-  }
-  // touch->click
-  if (window.PointerEvent){
-    window.addEventListener('pointerup', function(e){
-      if(!(e.pointerType==='touch'||e.pointerType==='pen')) return;
-      var n=e.target;
-      while(n && n!==document.body){
-        var tag=n.tagName, cls=(n.className||'')+'';
-        var clickable=/^(BUTTON|A|INPUT|SELECT|TEXTAREA|LABEL)$/.test(tag) ||
-                      (n.getAttribute && n.getAttribute('role')==='button') ||
-                      (typeof n.onclick==='function') ||
-                      (n.hasAttribute && n.hasAttribute('onclick')) ||
-                      (/(^|\s)(btn|button|clickable|tab|tile)(\s|$)/i).test(cls);
-        if (clickable && !n.disabled){
-          e.preventDefault();
-          n.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window}));
-          break;
-        }
-        n=n.parentElement;
-      }
-    }, {capture:true, passive:false});
-  }
-})();
-</script>
-
 </body>
 </html>
