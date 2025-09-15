@@ -1055,6 +1055,33 @@ render();
   window.addEventListener('unhandledrejection', function(e){ console.error('UnhandledRejection', e.reason && (e.reason.stack || e.reason)); }, true);
 })();
 </script>
+<!-- 放在 </body> 前，确保所有脚本都已加载 -->
+<script>
+(function(){
+  function safeFirstRender(tries){
+    try {
+      if (typeof window.render === 'function') {
+        window.render();            // 尝试首渲染
+        return;
+      }
+    } catch (e) {
+      // 典型：ReferenceError: Cannot access uninitialized variable.
+      if (e instanceof ReferenceError && (tries||0) < 50) {
+        return setTimeout(() => safeFirstRender((tries||0)+1), 20); // 继续等待初始化完成
+      }
+      // 其它错误直接抛给控制台，便于定位
+      console.error('render failed:', e);
+      return;
+    }
+    // render 还没挂上 → 等一下继续试
+    if ((tries||0) < 50) setTimeout(() => safeFirstRender((tries||0)+1), 20);
+  }
+
+  // 等 DOM 就绪后开始尝试（给 module/异步初始化时间）
+  if (document.readyState !== 'loading') safeFirstRender(0);
+  else document.addEventListener('DOMContentLoaded', () => safeFirstRender(0));
+})();
+</script>
 
 </body>
 </html>
