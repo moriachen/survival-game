@@ -54,26 +54,6 @@
     dialog{border:none;border-radius:16px;background:#0f1622;color:#fff;padding:18px;max-width:420px}
     dialog::backdrop{background:rgba(0,0,0,.55)}
   button[disabled]{opacity:.55; cursor:not-allowed; filter:grayscale(0.2);} 
-
-/* --- v8 Surgical Mobile Fixes (desktop untouched) --- */
-@media (hover: none) and (pointer: coarse){
-  /* likely intro/overlay/backdrop layers should not eat taps by default */
-  .intro, .hero, .cover, .overlay, .backdrop, .mask, .shade, .landing, .splash, .modal-bg,
-  [class*="overlay"], [class*="Overlay"], [class*="backdrop"], [class*="Backdrop"], [data-intro], [data-overlay] {
-    pointer-events: none !important;
-    /* keep visual but don't block */
-  }
-  /* interactive areas explicitly clickable */
-  button, .btn, .button, .tab, .tile, [role="button"], a, input, select, textarea, label, .clickable {
-    pointer-events: auto !important;
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-  }
-  /* ensure dialogs/top modals are above everything */
-  dialog{ z-index: 10001; }
-  dialog::backdrop{ background: rgba(0,0,0,.55); }
-}
-
 </style>
 </head>
 <body>
@@ -274,7 +254,7 @@ function initState(){
 let S = JSON.parse(localStorage.getItem(LS_KEY)) || initState();
 
 // ======== 工具 ========
-function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){} }
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(S)); }
 function ts(){ 
   const d = curDayAdj(); 
   const h = hourMod(); 
@@ -1014,93 +994,39 @@ function resetGame(){ if(!confirm('重开？当前进度会被清空')) return; 
 render();
 </script>
 
+<!-- === Mobile/Desktop bootstrap: wait for modules to init, then safe-init state and render === -->
 <script>
 (function(){
-  // Dialog ponyfill if needed (no changes to your code otherwise)
-  var supported = !!(window.HTMLDialogElement && HTMLDialogElement.prototype.showModal);
-  function openFallback(d){
-    if(!d) return;
-    if(!d.hasAttribute('open')) d.setAttribute('open','');
-    d.style.position='fixed'; d.style.left='50%'; d.style.top='50%';
-    d.style.transform='translate(-50%,-50%)'; d.style.zIndex='10001';
-    var bd = document.createElement('div');
-    bd.style.position='fixed'; bd.style.inset='0'; bd.style.background='rgba(0,0,0,.55)';
-    bd.style.zIndex='10000'; bd.setAttribute('data-dlg-bd','');
-    bd.addEventListener('click', function(){ try{ d.close(); }catch(e){ d.removeAttribute('open'); } bd.remove(); }, {passive:true});
-    document.body.appendChild(bd);
-  }
-  if(!supported){
-    document.addEventListener('DOMContentLoaded', function(){
-      document.querySelectorAll('dialog').forEach(function(d){
-        d.showModal = function(){ openFallback(d); };
-      });
-    });
-  }
-
-  // Gentle touch->click mapping
-  if(window.PointerEvent){
-    window.addEventListener('pointerup', function(e){
-      if(!(e.pointerType==='touch'||e.pointerType==='pen')) return;
-      var el=e.target;
-      while(el && el!==document.body){
-        if(el.tagName==='BUTTON'||el.tagName==='A'||el.tagName==='INPUT'||el.tagName==='SELECT'||el.tagName==='TEXTAREA'||el.getAttribute('role')==='button'||typeof el.onclick==='function'||el.hasAttribute('onclick')){
-          e.preventDefault();
-          el.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));
-          break;
+  function ready(fn){ if (document.readyState!=='loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
+  ready(function(){
+    // Give module scripts a tick to run and initialize let/const to avoid TDZ
+    setTimeout(function(){
+      try{
+        // Safe LS_KEY
+        if (typeof window.LS_KEY === 'undefined') window.LS_KEY = 'survival_save_v1';
+        // Safe state S
+        if (typeof window.S === 'undefined') {
+          try{
+            var raw = localStorage.getItem(window.LS_KEY);
+            window.S = raw ? JSON.parse(raw) : { pet: null };
+          }catch(e){
+            window.S = { pet: null };
+          }
         }
-        el=el.parentElement;
+        // First render if available
+        if (typeof window.render === 'function') {
+          try{ window.render(); }catch(e){ console.error('render failed:', e); }
+        }
+      }catch(e){
+        console.error('bootstrap failed:', e);
       }
-    }, {capture:true, passive:false});
-  }
-
-  // Surgical unmask: at a few strategic Y positions, if top element is a huge fixed transparent layer, disable its pointer-events
-  var isTouch = matchMedia('(hover: none) and (pointer: coarse)').matches;
-  function looksBlocker(el){
-    if(!el) return false;
-    var s=getComputedStyle(el);
-    if(!(s.position==='fixed'||s.position==='sticky'||s.position==='absolute')) return false;
-    if(s.pointerEvents==='none') return false;
-    var r=el.getBoundingClientRect();
-    var vw=Math.max(document.documentElement.clientWidth, window.innerWidth||0);
-    var vh=Math.max(document.documentElement.clientHeight, window.innerHeight||0);
-    if(r.width<vw*0.9 || r.height<vh*0.4) return false; // tall & wide region
-    // transparentish background
-    var bg = s.backgroundColor||'rgba(0,0,0,0)';
-    var m = bg.match(/rgba?\(([^)]+)\)/);
-    var a = 0;
-    if(m){
-      var p = m[1].split(',').map(function(x){return parseFloat(x)});
-      a = (p.length>3)? p[3] : (bg.indexOf('rgba')===0? 0:1);
-    }
-    return a <= 0.05 && !/modal|dialog/i.test(el.className+'');
-  }
-  function unmaskAt(y){
-    var x = Math.round(window.innerWidth/2);
-    var stack = document.elementsFromPoint(x, y) || [];
-    for(var i=0;i<stack.length;i++){
-      var el=stack[i];
-      if(looksBlocker(el)){
-        el.style.pointerEvents='none';
-        return true;
-      }
-      // stop if we meet clickable
-      if(el.tagName==='BUTTON'||el.tagName==='A'||el.hasAttribute && el.hasAttribute('onclick')) return false;
-    }
-    return false;
-  }
-  function runUnmask(){
-    // try a few rows: tab row (~200), body mid (~300), lower (~450)
-    var ys=[200, 300, 450];
-    for(var i=0;i<ys.length;i++){ unmaskAt(ys[i]); }
-  }
-  if(isTouch){
-    window.addEventListener('load', function(){ setTimeout(runUnmask, 300); });
-    // also try after resize/orientation
-    window.addEventListener('orientationchange', function(){ setTimeout(runUnmask, 300); });
-  }
+    }, 0);
+  });
+  // Better global error reporting
+  window.addEventListener('error', function(e){ console.error('GlobalError', e.message, e.error && e.error.stack); }, true);
+  window.addEventListener('unhandledrejection', function(e){ console.error('UnhandledRejection', e.reason && (e.reason.stack || e.reason)); }, true);
 })();
 </script>
-<script src="./diag-overlay.js"></script>
 
 </body>
 </html>
