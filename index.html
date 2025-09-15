@@ -54,6 +54,14 @@
     dialog{border:none;border-radius:16px;background:#0f1622;color:#fff;padding:18px;max-width:420px}
     dialog::backdrop{background:rgba(0,0,0,.55)}
   button[disabled]{opacity:.55; cursor:not-allowed; filter:grayscale(0.2);} 
+
+/* --- Mobile touch improvements --- */
+button, .btn, .tab, .tile, [role="button"]{
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
 </style>
 </head>
 <body>
@@ -254,7 +262,7 @@ function initState(){
 let S = JSON.parse(localStorage.getItem(LS_KEY)) || initState();
 
 // ======== 工具 ========
-function save(){ localStorage.setItem(LS_KEY, JSON.stringify(S)); }
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){ /* ignore storage errors (iOS private mode, quota, etc.) */ } }
 function ts(){ 
   const d = curDayAdj(); 
   const h = hourMod(); 
@@ -310,6 +318,7 @@ function render(){
   TABS.forEach(t=>{ const b=document.createElement('div'); b.className='tab'+(CUR===t.id?' active':''); b.textContent=t.name; b.onclick=()=>{ CUR=t.id; renderPanel(); }; tabs.appendChild(b); });
   renderPanel();
 
+  enableMobilePressRoot();
   // 初次开局：要求选择宠物
   if(S.pet===null){ const d=document.getElementById('petDlg'); d.showModal(); document.getElementById('chooseDog').onclick=()=>{ S.pet='dog'; addLog('你选择了小狗作为同伴。'); save(); d.close(); render(); }; document.getElementById('chooseCat').onclick=()=>{ S.pet='cat'; addLog('你选择了小猫作为同伴。'); save(); d.close(); render(); }; }
 }
@@ -992,6 +1001,46 @@ function resetGame(){ if(!confirm('重开？当前进度会被清空')) return; 
 
 // ======== 启动 ========
 render();
+
+// --- Mobile press helper: ensures taps fire clicks on iOS/Android ---
+function enableMobilePressRoot(){
+  if(!window.PointerEvent) return;
+  const handler = (e) => {
+    if(e.pointerType === 'touch' || e.pointerType === 'pen'){
+      const el = e.target.closest('button,.btn,.tab,[role="button"]');
+      if(el && !el.disabled){
+        // Prevent double-activation by stopping the synthetic click
+        e.preventDefault?.();
+        // Dispatch a click only if the element doesn't already handle pointerup
+        // Using setTimeout to come after any internal pointerup handlers
+        setTimeout(() => { el.click(); }, 0);
+      }
+    }
+  };
+  // capture to run before other listeners, passive:false so we can prevent default when needed
+  window.addEventListener('pointerup', handler, {passive:false, capture:true});
+}
+
+
+// --- (Optional) Audio unlock stub for iOS ---
+let __audioUnlocked = false;
+function __unlockAudioOnce(){
+  if(__audioUnlocked) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if(!AC) { __audioUnlocked = true; return; }
+  try{
+    const ctx = new AC();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(0); osc.stop(0.01);
+    __audioUnlocked = true;
+  }catch(e){ __audioUnlocked = true; }
+}
+window.addEventListener('pointerdown', __unlockAudioOnce, {once:true});
+window.addEventListener('touchstart', __unlockAudioOnce, {once:true});
+
 </script>
 </body>
 </html>
