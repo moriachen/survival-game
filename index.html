@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>末日囤货生存 · 网页版（完整版·宠物自带+宠粮）</title>
+  <title>末日囤货生存 · 网页版（完整版·自带宠物）</title>
   <style>
     :root{
       --bg:#0b0f14; --panel:#10161c; --card:#131b23; --line:#232e3a; --text:#f5f7fa; --muted:#9fb0c2;
@@ -58,7 +58,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>🧟‍♂️ 末日囤货生存 · 网页版（完整版·宠物自带+宠粮）</h1>
+  <h1>🧟‍♂️ 末日囤货生存 · 网页版（完整版·自带宠物）</h1>
   <div class="muted">单文件 · 本地存档 · 规则驱动（无后端）</div>
 
   <!-- 顶部 KPI -->
@@ -85,7 +85,7 @@
 <!-- 开局宠物选择 -->
 <dialog id="petDlg">
   <h3>选择你的宠物</h3>
-  <p class="muted">你不会去宠物店；你自带一只宠物。请在猫与狗中选择其一。后续需要在超市购买相应的宠物粮。</p>
+  <p class="muted">你将自带一只宠物作为伙伴。请在猫与狗中选择其一。后续需要在超市购买相应的宠物粮。</p>
   <div class="row">
     <button class="btn" id="chooseDog">🐕 选择小狗</button>
     <button class="btn" id="chooseCat">🐈 选择小猫</button>
@@ -247,7 +247,7 @@ function initState(){
     garden:{plots:0, skill:false, progress:0},
     wep:{melee:false, handgun:false, rifle:false, ammo9:0, ammo556:0},
     news: '城市暂时平静，只有少数人察觉到异常。',
-    log:[{t:ts(), msg:'你是美国留学生。重生至末日前第3天，航班封锁，需用 3 万美元完成采购与布置。'}]
+    log:[{t:ts(), msg:'你是苦逼的美国留子。重生至末日前第3天，航班封锁，需用 1 万美元完成采购与布置。'}]
   }
 }
 
