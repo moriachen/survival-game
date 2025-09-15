@@ -1,11 +1,10 @@
-<!DOCTYPE html>
-
+<!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
-<title>末日囤货生存 · 网页版（完整版·自带宠物）</title>
-<style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>末日囤货生存 · 网页版（完整版·自带宠物）</title>
+  <style>
     :root{
       --bg:#0b0f14; --panel:#10161c; --card:#131b23; --line:#232e3a; --text:#f5f7fa; --muted:#9fb0c2;
       --accent:#ff4d4f; --ok:#14e099; --warn:#ffcc4d; --vio:#6c5ce7;
@@ -56,124 +55,70 @@
     dialog::backdrop{background:rgba(0,0,0,.55)}
   button[disabled]{opacity:.55; cursor:not-allowed; filter:grayscale(0.2);} 
 
-/* --- Mobile touch improvements --- */
-button, .btn, .tab, .tile, [role="button"]{
+/* === Mobile parity minimal fixes === */
+button, .btn, .tab, [role="button"]{
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   cursor: pointer;
 }
-
-
-/* --- Dialog robust mobile styling & fallback --- */
+/* Robust dialog z-index & sizing on mobile; does not affect desktop layout */
 dialog{
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  max-width: 90vw;
-  width: min(420px, 90vw);
+  z-index: 10001;
+  max-width: min(560px, 90vw);
   max-height: 80vh;
   overflow: auto;
-  z-index: 10001;
 }
-dialog._backdrop {
-  position: fixed;
-  inset: 0;
+dialog::backdrop{
   background: rgba(0,0,0,.55);
-  z-index: 10000;
 }
 @supports (height: 100svh){
   dialog{ max-height: 80svh; }
-}
-
-
-/* --- Custom Modal (no <dialog> dependency) --- */
-#customBackdrop{ position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:99997; display:none; }
-#customModal{
-  position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
-  width:min(420px, 90vw); max-height:80svh; overflow:auto;
-  background:#111; color:#eee; border-radius:14px; padding:16px; z-index:99998; display:none;
-  box-shadow:0 10px 30px rgba(0,0,0,.6);
-}
-#customModal h3{ margin:0 0 8px 0; font-size:18px; }
-#customModal .row{ display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; }
-#customModal button{ flex:1 1 45%; padding:10px 12px; border-radius:12px; border:1px solid #555; touch-action:manipulation; }
-#customClose{ position:absolute; right:10px; top:10px; border:none; background:transparent; color:#aaa; font-size:20px; }
-
-
-/* --- Keep-desktop-layout: global polish for mobile --- */
-:root{
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-}
-/* avoid iOS auto-zoom on inputs <16px */
-input, select, textarea { font-size: 16px; }
-/* app scaler container */
-#app-scale{
-  transform-origin: top center;
-  will-change: transform;
-}
-/* prevent body scrolling jump when scaled */
-html, body { height: 100%; }
-body { overflow-x: hidden; }
-
-
-/* --- Aggressive Mobile Unblock (only on touch devices) --- */
-@media (hover: none) and (pointer: coarse){
-  /* 1) Common overlay/backdrop names彻底禁用点击拦截 */
-  .overlay, .mask, .backdrop, .intro, .shade, .modal-bg, .fullscreen, .cover {
-    pointer-events: none !important;
-  }
-  [class*="overlay"], [class*="Overlay"], [class*="mask"], [class*="Mask"], [class*="backdrop"], [class*="Backdrop"] {
-    pointer-events: none !important;
-  }
-  /* 2) 明确让互动控件可点 */
-  button, [role="button"], .btn, .button, .tab, .tile, a, input, select, textarea, label, .clickable {
-    pointer-events: auto !important;
-  }
-  /* 3) 防止全屏 fixed 层挡手：通用容器也不拦截（除非是互动元素） */
-  .app, .container, .page, .root {
-    pointer-events: auto !important;
-  }
 }
 
 </style>
 </head>
 <body>
 <div class="wrap">
-<h1>🧟‍♂️ 末日囤货生存 · 网页版（完整版·自带宠物）</h1>
-<div class="muted">单文件 · 本地存档 · 规则驱动（无后端）</div>
-<!-- 顶部 KPI -->
-<div class="stat" id="kpi">
-<div class="kpi"><div class="lab">日期</div><div class="num" id="dayLab"></div><div class="muted" id="hourLab"></div></div>
-<div class="kpi"><div class="lab">资金（$）</div><div class="num" id="moneyLab"></div><div class="bar"><i id="moneyBar" style="width:50%"></i></div></div>
-<div class="kpi"><div class="lab">体力</div><div class="num" id="staLab"></div><div class="bar"><i id="staBar" style="width:80%"></i></div></div>
-<div class="kpi"><div class="lab">精神度</div><div class="num" id="moodLab"></div><div class="muted">0 则崩溃</div></div>
-<div class="kpi"><div class="lab">饱食度</div><div class="num" id="hungerLab"></div><div class="muted">0 则进入饥饿倒计时</div></div>
-<div class="kpi"><div class="lab">今日剩余工时</div><div class="num" id="hoursLeftLab"></div><div class="muted">允许透支 <input id="allowOver" type="checkbox"/></div></div>
-<div class="kpi"><div class="lab">仓库容量</div><div class="num" id="capLab"></div><div class="muted" id="capSub"></div></div>
-<div class="kpi"><div class="lab">风险/电力</div><div class="num" id="riskLab"></div><div class="muted" id="powerLab"></div></div>
+  <h1>🧟‍♂️ 末日囤货生存 · 网页版（完整版·自带宠物）</h1>
+  <div class="muted">单文件 · 本地存档 · 规则驱动（无后端）</div>
+
+  <!-- 顶部 KPI -->
+  <div class="stat" id="kpi">
+    <div class="kpi"><div class="lab">日期</div><div class="num" id="dayLab"></div><div class="muted" id="hourLab"></div></div>
+    <div class="kpi"><div class="lab">资金（$）</div><div class="num" id="moneyLab"></div><div class="bar"><i id="moneyBar" style="width:50%"></i></div></div>
+    <div class="kpi"><div class="lab">体力</div><div class="num" id="staLab"></div><div class="bar"><i id="staBar" style="width:80%"></i></div></div>
+    <div class="kpi"><div class="lab">精神度</div><div class="num" id="moodLab"></div><div class="muted">0 则崩溃</div></div>
+    <div class="kpi"><div class="lab">饱食度</div><div class="num" id="hungerLab"></div><div class="muted">0 则进入饥饿倒计时</div></div>
+    <div class="kpi"><div class="lab">今日剩余工时</div><div class="num" id="hoursLeftLab"></div><div class="muted">允许透支 <input type="checkbox" id="allowOver"></div></div>
+    <div class="kpi"><div class="lab">仓库容量</div><div class="num" id="capLab"></div><div class="muted" id="capSub"></div></div>
+    <div class="kpi"><div class="lab">风险/电力</div><div class="num" id="riskLab"></div><div class="muted" id="powerLab"></div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" id="tabs"></div>
+
+  <!-- Panels -->
+  <div id="panel"></div>
+
+  <div class="footer">© Survival Web Demo · 建议部署 GitHub Pages</div>
 </div>
-<!-- Tabs -->
-<div class="tabs" id="tabs"></div>
-<!-- Panels -->
-<div id="panel"></div>
-<div class="footer">© Survival Web Demo · 建议部署 GitHub Pages</div>
-</div>
+
 <!-- 开局宠物选择 -->
 <dialog id="petDlg">
-<h3>选择你的宠物</h3>
-<p class="muted">你将自带一只宠物作为伙伴。请在猫与狗中选择其一。后续需要在超市购买相应的宠物粮。</p>
-<div class="row">
-<button class="btn" id="chooseDog">🐕 选择小狗</button>
-<button class="btn" id="chooseCat">🐈 选择小猫</button>
-</div>
+  <h3>选择你的宠物</h3>
+  <p class="muted">你将自带一只宠物作为伙伴。请在猫与狗中选择其一。后续需要在超市购买相应的宠物粮。</p>
+  <div class="row">
+    <button class="btn" id="chooseDog">🐕 选择小狗</button>
+    <button class="btn" id="chooseCat">🐈 选择小猫</button>
+  </div>
 </dialog>
+
 <dialog id="popDlg">
-<h3 id="popTitle">提示</h3>
-<div class="muted" id="popText" style="margin:8px 0 12px"></div>
-<div class="row"><button class="btn" onclick="document.getElementById('popDlg').close()">好的</button></div>
+  <h3 id="popTitle">提示</h3>
+  <div id="popText" class="muted" style="margin:8px 0 12px"></div>
+  <div class="row"><button class="btn" onclick="document.getElementById('popDlg').close()">好的</button></div>
 </dialog>
+
 <script>
 const LS_KEY = 'survival_web_v5_petfood';
 
@@ -330,7 +275,7 @@ function initState(){
 let S = JSON.parse(localStorage.getItem(LS_KEY)) || initState();
 
 // ======== 工具 ========
-function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){ /* ignore storage errors (iOS private mode, quota, etc.) */ } }
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){ /* iOS private mode/quota */ } }
 function ts(){ 
   const d = curDayAdj(); 
   const h = hourMod(); 
@@ -386,9 +331,8 @@ function render(){
   TABS.forEach(t=>{ const b=document.createElement('div'); b.className='tab'+(CUR===t.id?' active':''); b.textContent=t.name; b.onclick=()=>{ CUR=t.id; renderPanel(); }; tabs.appendChild(b); });
   renderPanel();
 
-  enableMobilePressRoot();
   // 初次开局：要求选择宠物
-  if(S.pet===null){ const d=document.getElementById('petDlg'); d.showModal(); document.getElementById('chooseDog').onclick=()=>{ S.pet='dog'; addLog('你选择了小狗作为同伴。'); save(); __closeDialog('petDlg'); render(); }; document.getElementById('chooseCat').onclick=()=>{ S.pet='cat'; addLog('你选择了小猫作为同伴。'); save(); __closeDialog('petDlg'); render(); }; }
+  if(S.pet===null){ const d=document.getElementById('petDlg'); d.showModal(); document.getElementById('chooseDog').onclick=()=>{ S.pet='dog'; addLog('你选择了小狗作为同伴。'); save(); d.close(); render(); }; document.getElementById('chooseCat').onclick=()=>{ S.pet='cat'; addLog('你选择了小猫作为同伴。'); save(); d.close(); render(); }; }
 }
 
 function renderPanel(){
@@ -1069,339 +1013,142 @@ function resetGame(){ if(!confirm('重开？当前进度会被清空')) return; 
 
 // ======== 启动 ========
 render();
+</script>
 
-// --- Mobile press helper: ensures taps fire clicks on iOS/Android ---
-function enableMobilePressRoot(){
+<script>
+// === Gentle touch-to-click helper ===
+(function(){
   if(!window.PointerEvent) return;
-  const handler = (e) => {
-    if(e.pointerType === 'touch' || e.pointerType === 'pen'){
-      const el = e.target.closest('button,.btn,.tab,[role="button"]');
-      if(el && !el.disabled){
-        // Prevent double-activation by stopping the synthetic click
-        e.preventDefault?.();
-        // Dispatch a click only if the element doesn't already handle pointerup
-        // Using setTimeout to come after any internal pointerup handlers
-        setTimeout(() => { el.click(); }, 0);
-      }
-    }
-  };
-  // capture to run before other listeners, passive:false so we can prevent default when needed
-  window.addEventListener('pointerup', handler, {passive:false, capture:true});
-}
-
-
-// --- (Optional) Audio unlock stub for iOS ---
-let __audioUnlocked = false;
-function __unlockAudioOnce(){
-  if(__audioUnlocked) return;
-  const AC = window.AudioContext || window.webkitAudioContext;
-  if(!AC) { __audioUnlocked = true; return; }
-  try{
-    const ctx = new AC();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    gain.gain.value = 0;
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(0); osc.stop(0.01);
-    __audioUnlocked = true;
-  }catch(e){ __audioUnlocked = true; }
-}
-window.addEventListener('pointerdown', __unlockAudioOnce, {once:true});
-window.addEventListener('touchstart', __unlockAudioOnce, {once:true});
-
-
-// --- Minimal <dialog> polyfill/fallback for iOS/Android older builds ---
-(function(){
-  var supported = !!(window.HTMLDialogElement && HTMLDialogElement.prototype.showModal);
-  function ensureBackdrop(dlg){
-    if(dlg._backdropEl) return dlg._backdropEl;
-    var b = document.createElement('div');
-    b.className = ' _backdrop'; // styled via dialog._backdrop CSS
-    // Use a specific selector 'dialog._backdrop' so styles apply
-    b.setAttribute('data-dlg-backdrop','1');
-    b.addEventListener('click', function(){
-      // close on outside tap
-      if(dlg.close) dlg.close(); else dlg.removeAttribute('open');
-      b.remove();
-      dlg._backdropEl = null;
-    }, {passive:true});
-    dlg._backdropEl = b;
-    return b;
-  }
-  function openFallback(dlg){
-    dlg.setAttribute('open','');
-    var b = ensureBackdrop(dlg);
-    document.body.appendChild(b);
-  }
-  function closeFallback(dlg){
-    dlg.removeAttribute('open');
-    if(dlg._backdropEl){ dlg._backdropEl.remove(); dlg._backdropEl = null; }
-  }
-  if(!supported){
-    document.querySelectorAll('dialog').forEach(function(d){
-      // Patch methods
-      d.showModal = function(){ openFallback(d); };
-      d.close = function(){ closeFallback(d); };
-    });
-  }
-  // Guard: if showModal exists but throws, wrap with try/catch and fallback
-  window.__openDialog = function(id){
-    var d = document.getElementById(id);
-    if(!d) return;
-    try{ d.showModal(); }
-    catch(e){ openFallback(d); }
-  };
-  window.__closeDialog = function(id){
-    var d = document.getElementById(id);
-    if(!d) return;
-    try{ __closeDialog('petDlg'); }
-    catch(e){ closeFallback(d); }
-  };
-})();
-
-</script>
-
-<script>
-// --- Global mobile tap delegator (v2) ---
-(function(){
-  var lastSynthAt = 0;
+  var lastSynth = 0;
   function wantsClick(el){
-    if(!el) return false;
-    // Elements inherently clickable or carrying inline handlers
-    if (el.tagName === 'BUTTON' || el.tagName === 'A' || el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') return true;
-    if (typeof el.onclick === 'function') return true;
-    if (el.hasAttribute('onclick')) return true;
-    if (el.getAttribute('role') === 'button') return true;
-    if (el.classList && (el.classList.contains('btn') || el.classList.contains('button') || el.classList.contains('tab') || el.classList.contains('tile'))) return true;
-    return false;
-  }
-  function findClickable(start){
-    var el = start;
-    while(el && el !== document.body){
-      if (wantsClick(el)) return el;
-      el = el.parentElement;
-    }
-    return null;
-  }
-  function synthClick(target){
-    var ev = new MouseEvent('click', {bubbles:true, cancelable:true, view:window});
-    target.dispatchEvent(ev);
-  }
-  function onPointerUp(e){
-    if(!(e.pointerType === 'touch' || e.pointerType === 'pen')) return;
-    var now = Date.now();
-    // If we recently synthesized a click, don't do it again
-    if (now - lastSynthAt < 120) return;
-    var el = findClickable(e.target);
-    if(el && !el.disabled){
-      // Prevent potential double-activation from subsequent synthetic "click"
-      e.preventDefault();
-      lastSynthAt = now;
-      setTimeout(function(){ synthClick(el); }, 0);
-    }
-  }
-  if (window.PointerEvent){
-    window.addEventListener('pointerup', onPointerUp, {passive:false, capture:true});
-  }else{
-    // Fallback for very old browsers
-    window.addEventListener('touchend', function(e){
-      var el = findClickable(e.target);
-      if(el && !el.disabled){
-        e.preventDefault();
-        synthClick(el);
-      }
-    }, {passive:false, capture:true});
-  }
-})();
-</script>
-
-<div id="customBackdrop" aria-hidden="true"></div>
-<div id="customModal" role="dialog" aria-modal="true" aria-labelledby="cmTitle">
-  <button id="customClose" aria-label="关闭">×</button>
-  <h3 id="cmTitle">选择你的宠物</h3>
-  <div>宠物会影响你的玩法：小狗有打猎/震慑加成但会引来注意；小猫不引来丧尸但没有打猎加成。</div>
-  <div class="row">
-    <button id="btnPetDog">选择小狗</button>
-    <button id="btnPetCat">选择小猫</button>
-  </div>
-</div>
-
-
-<script>
-(function(){
-  var bd = document.getElementById('customBackdrop');
-  var md = document.getElementById('customModal');
-  var btnDog = document.getElementById('btnPetDog');
-  var btnCat = document.getElementById('btnPetCat');
-  var btnClose = document.getElementById('customClose');
-
-  function showModal(){
-    if(!bd || !md) return;
-    bd.style.display='block'; md.style.display='block';
-    // prevent background scroll
-    document.documentElement.style.overflow='hidden';
-    document.body.style.overflow='hidden';
-  }
-  function hideModal(){
-    if(!bd || !md) return;
-    bd.style.display='none'; md.style.display='none';
-    document.documentElement.style.overflow='';
-    document.body.style.overflow='';
-  }
-
-  // Expose to global for existing code paths
-  window.__openDialog = function(id){
-    if(id === 'petDlg') { showModal(); }
-    else {
-      // noop for others; keep graceful fallback
-      try{
-        var d = document.getElementById(id);
-        if(d && d.showModal) d.showModal(); else showModal();
-      }catch(e){ showModal(); }
-    }
-  };
-  window.__closeDialog = function(id){
-    if(id === 'petDlg') { hideModal(); }
-    else {
-      try{
-        var d = document.getElementById(id);
-        if(d && d.close) d.close(); else hideModal();
-      }catch(e){ hideModal(); }
-    }
-  };
-
-  function pickPet(type){
-    try{
-      // Try to reach your global state S if present
-      if (typeof S !== 'undefined'){
-        S.pet = (type==='dog') ? 'dog' : 'cat';
-        if (typeof addLog === 'function'){
-          addLog('你选择了' + (type==='dog' ? '小狗' : '小猫') + '作为同伴。');
-        }
-        if (typeof save === 'function') save();
-        if (typeof render === 'function') render();
-      }
-    }catch(e){}
-    hideModal();
-  }
-
-  if(btnDog) btnDog.addEventListener('click', function(){ pickPet('dog'); }, {passive:true});
-  if(btnCat) btnCat.addEventListener('click', function(){ pickPet('cat'); }, {passive:true});
-  if(btnClose) btnClose.addEventListener('click', function(){ hideModal(); }, {passive:true});
-
-  // If first-load needs pet, auto show (safe check)
-  document.addEventListener('DOMContentLoaded', function(){
-    try{
-      if (typeof S !== 'undefined' && (S.pet === null || typeof S.pet === 'undefined')){
-        showModal();
-      }
-    }catch(e){ /* ignore */ }
-  });
-})();
-</script>
-
-
-<script>
-// --- Desktop-identical scaling on mobile (no CSS rewrites needed) ---
-(function(){
-  var DESIGN_WIDTH = 1200; // <= set this to your desktop canvas width
-  var scaleEl;
-
-  function ensureWrapper(){
-    if (scaleEl) return scaleEl;
-    scaleEl = document.getElementById('app-scale');
-    if (!scaleEl){
-      scaleEl = document.createElement('div');
-      scaleEl.id = 'app-scale';
-      // Move all body child nodes (except our script tags inserted later) into wrapper
-      var nodes = Array.from(document.body.childNodes);
-      nodes.forEach(function(n){
-        // keep the wrapper insertion at top; we'll move everything into it
-        if (n.id === 'app-scale') return;
-        document.body.removeChild(n);
-        scaleEl.appendChild(n);
-      });
-      document.body.appendChild(scaleEl);
-    }
-    return scaleEl;
-  }
-
-  function applyScale(){
-    var el = ensureWrapper();
-    var w = window.innerWidth;
-    var scale = Math.min(1, w / DESIGN_WIDTH);
-    el.style.transform = 'scale(' + scale + ')';
-    // Adjust body height to scaled content height to keep scroll working
-    requestAnimationFrame(function(){
-      var r = el.getBoundingClientRect();
-      document.body.style.height = r.height + 'px';
-    });
-  }
-
-  window.addEventListener('resize', applyScale);
-  window.addEventListener('orientationchange', applyScale);
-  window.addEventListener('load', applyScale);
-  document.addEventListener('DOMContentLoaded', applyScale);
-})();
-</script>
-
-
-<script>
-// --- Runtime auto-unblock for top-most full-screen blockers (mobile only) ---
-(function(){
-  var isTouch = matchMedia('(hover: none) and (pointer: coarse)').matches;
-  if(!isTouch) return;
-
-  var unblocked = new WeakSet();
-  function isClickable(el){
     if(!el) return false;
     var tag = el.tagName;
     if(/^(BUTTON|A|INPUT|SELECT|TEXTAREA|LABEL)$/.test(tag)) return true;
-    if(el.getAttribute && (el.getAttribute('role') === 'button')) return true;
-    var cls = (el.className || '') + '';
-    if(/(\bbtn\b|\bbutton\b|\bclickable\b|\btab\b|\btile\b)/i.test(cls)) return true;
-    if(typeof el.onclick === 'function' || el.hasAttribute && el.hasAttribute('onclick')) return true;
+    if(el.getAttribute && el.getAttribute('role') === 'button') return true;
+    if(typeof el.onclick === 'function' || (el.hasAttribute && el.hasAttribute('onclick'))) return true;
+    var cn = (el.className||'')+'';
+    if(/\b(btn|button|tab|tile|clickable)\b/i.test(cn)) return true;
     return false;
   }
-
-  function looksLikeFullScreen(el){
-    var s = getComputedStyle(el);
-    if(!(s.position === 'fixed' || s.position === 'sticky' || s.position === 'absolute')) return false;
-    var r = el.getBoundingClientRect();
-    var vw = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
-    var vh = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
-    return (r.width >= vw * 0.9) && (r.height >= vh * 0.9);
+  function findClickable(start){
+    var n = start;
+    while(n && n !== document.body){
+      if(wantsClick(n)) return n;
+      n = n.parentElement;
+    }
+    return null;
   }
+  window.addEventListener('pointerup', function(e){
+    if(!(e.pointerType==='touch'||e.pointerType==='pen')) return;
+    var now = Date.now();
+    if(now - lastSynth < 120) return;
+    var el = findClickable(e.target);
+    if(el && !el.disabled){
+      e.preventDefault();
+      lastSynth = now;
+      el.dispatchEvent(new MouseEvent('click', {bubbles:true, cancelable:true, view:window}));
+    }
+  }, {capture:true, passive:false});
+})();
+</script>
 
-  function tryUnblockAtPoint(x,y){
-    var stack = document.elementsFromPoint(x,y) || [];
-    for(var i=0;i<stack.length;i++){
+
+<script>
+// === Dialog ponyfill: only activates if showModal/close not supported or throw ===
+(function(){
+  var Supported = !!(window.HTMLDialogElement && HTMLDialogElement.prototype.showModal);
+  function ensureBackdrop(d){
+    if(d._bd) return d._bd;
+    var b = document.createElement('div');
+    b.style.position='fixed'; b.style.inset='0';
+    b.style.background='rgba(0,0,0,.55)';
+    b.style.zIndex='10000';
+    b.setAttribute('data-dialog-backdrop','');
+    b.addEventListener('click', function(){
+      try{ d.close(); }catch(e){ d.removeAttribute('open'); if(d._bd){ d._bd.remove(); d._bd=null; } }
+    }, {passive:true});
+    d._bd = b;
+    return b;
+  }
+  function openFallback(d){
+    if(!d.hasAttribute('open')) d.setAttribute('open','');
+    d.style.position = d.style.position || 'fixed';
+    if(getComputedStyle(d).position !== 'fixed'){ d.style.position='fixed'; }
+    d.style.left = '50%'; d.style.top='50%'; d.style.transform='translate(-50%,-50%)';
+    d.style.zIndex = '10001';
+    document.body.appendChild(ensureBackdrop(d));
+    document.documentElement.style.overflow='hidden'; document.body.style.overflow='hidden';
+  }
+  function closeFallback(d){
+    d.removeAttribute('open');
+    if(d._bd){ d._bd.remove(); d._bd=null; }
+    document.documentElement.style.overflow=''; document.body.style.overflow='';
+  }
+  // If unsupported, patch all dialogs
+  if(!Supported){
+    document.addEventListener('DOMContentLoaded', function(){
+      document.querySelectorAll('dialog').forEach(function(d){
+        d.showModal = function(){ openFallback(d); };
+        d.close = function(){ closeFallback(d); };
+      });
+    });
+  }else{
+    // Supported but sometimes throws on showModal during initial load on iOS
+    // Provide guarded helpers, but DO NOT replace existing calls.
+    document.addEventListener('click', function(e){
+      // no-op; keep context warm
+    });
+  }
+})();
+</script>
+
+
+<script>
+// === Mild auto-unmask for full-screen transparent blockers (mobile only) ===
+(function(){
+  var isTouch = matchMedia('(hover: none) and (pointer: coarse)').matches;
+  if(!isTouch) return;
+  function isInteractive(el){
+    if(!el) return false;
+    var tag = el.tagName;
+    if(/^(BUTTON|A|INPUT|SELECT|TEXTAREA|LABEL)$/.test(tag)) return true;
+    if(el.getAttribute && el.getAttribute('role')==='button') return true;
+    if(typeof el.onclick === 'function' || (el.hasAttribute && el.hasAttribute('onclick'))) return true;
+    return false;
+  }
+  function looksFullScreen(el){
+    var s = getComputedStyle(el);
+    if(!(s.position==='fixed'||s.position==='sticky'||s.position==='absolute')) return false;
+    var r = el.getBoundingClientRect();
+    var vw = Math.max(document.documentElement.clientWidth, window.innerWidth||0);
+    var vh = Math.max(document.documentElement.clientHeight, window.innerHeight||0);
+    return (r.width>=vw*0.95 && r.height>=vh*0.95);
+  }
+  function transparentish(el){
+    var s = getComputedStyle(el);
+    if(s.pointerEvents==='none') return false;
+    // Consider it blocking if it has no visible background or very low alpha
+    var bg = s.backgroundColor || 'rgba(0,0,0,0)';
+    var m = bg.match(/rgba?\(([^)]+)\)/);
+    if(m){
+      var parts = m[1].split(',').map(function(x){return parseFloat(x)});
+      var a = parts.length>3? parts[3]: (bg.indexOf('rgba')===0? 0:1);
+      if(a<=0.05) return true;
+    }
+    return s.backgroundImage==='none';
+  }
+  function tryUnmaskOnce(){
+    var stack = document.elementsFromPoint(window.innerWidth/2, 100) || [];
+    for(var i=0;i<Math.min(stack.length,6);i++){
       var el = stack[i];
-      if(isClickable(el)) return; // already clickable on top
-      if(unblocked.has(el)) continue;
-      if(looksLikeFullScreen(el)){
-        // only unblock if it's not an obvious modal/dialog
-        if(!(el.tagName === 'DIALOG' || /modal|dialog/i.test(el.className+''))){
-          el.style.pointerEvents = 'none';
-          el.classList.add('auto-unblock');
-          unblocked.add(el);
-          // Stop after unblocking one layer
-          return;
-        }
+      if(isInteractive(el)) return;
+      if(looksFullScreen(el) && transparentish(el)){
+        el.style.pointerEvents='none';
+        return;
       }
     }
   }
-
-  var tries = 0, MAX_TRIES = 6;
-  function onTouch(e){
-    if(tries >= MAX_TRIES) return;
-    var t = (e.touches && e.touches[0]) || e;
-    tryUnblockAtPoint(t.clientX, t.clientY);
-    tries++;
-  }
-
-  window.addEventListener('pointerdown', onTouch, {capture:true, passive:false});
-  window.addEventListener('touchstart', onTouch, {capture:true, passive:false});
+  window.addEventListener('load', function(){ setTimeout(tryUnmaskOnce, 300); }, {once:true});
 })();
 </script>
 
