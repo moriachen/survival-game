@@ -1,0 +1,125 @@
+
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mobile Diagnose Lab</title>
+<style>
+:root{color-scheme:dark light}
+html,body{margin:0;padding:0;font-family:system-ui, -apple-system, Segoe UI, Roboto, PingFang SC, Microsoft YaHei, sans-serif}
+#bar{position:sticky;top:0;z-index:99999;display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px;background:#111;color:#eee}
+#bar button{padding:8px 10px;border-radius:10px;border:1px solid #555;background:#222;color:#eee;touch-action:manipulation}
+#bar .ok{color:#8f8}
+#bar .bad{color:#f88}
+#out{white-space:pre-wrap;padding:8px;font-family:ui-monospace, SFMono-Regular, Menlo, monospace}
+.box{padding:12px;border-top:1px dashed #444}
+.hl{outline:2px dashed #ff0;outline-offset:-2px}
+iframe{border:0;width:100%;height:70vh}
+</style>
+</head>
+<body>
+<div id="bar">
+  <button id="btnProbe">A. 探测顶层遮罩</button>
+  <button id="btnClickThrough">B. 强制穿透模式 (开/关)</button>
+  <button id="btnTestEvents">C. 事件测试</button>
+  <button id="btnShowFeatures">D. 功能检测</button>
+  <button id="btnShowErrors">E. 显示错误</button>
+</div>
+<div class="box">
+  <div>把这个文件放到你的仓库根目录（和 index.html 同目录），手机打开本页，然后在下面的“测试区域”点击/滑动。</div>
+</div>
+<div class="box">
+  <h3>测试区域</h3>
+  <div id="zone" style="height:30vh;background:#222;border-radius:12px"></div>
+</div>
+<div class="box">
+  <h3>报告</h3>
+  <div id="out"></div>
+</div>
+<script>
+const out = document.getElementById('out');
+function log(s){ const t=new Date().toLocaleTimeString(); out.textContent = '['+t+'] '+s+'\n'+out.textContent; }
+
+// A. 探测顶层遮罩
+function looksBlocker(el){
+  if(!el) return false;
+  const s = getComputedStyle(el);
+  if(!(s.position==='fixed'||s.position==='sticky'||s.position==='absolute')) return false;
+  if(s.pointerEvents==='none') return false;
+  const r = el.getBoundingClientRect();
+  const vw = Math.max(document.documentElement.clientWidth, window.innerWidth||0);
+  const vh = Math.max(document.documentElement.clientHeight, window.innerHeight||0);
+  if(r.width<vw*0.9 || r.height<vh*0.4) return false;
+  const bg = s.backgroundColor||'rgba(0,0,0,0)';
+  const m = bg.match(/rgba?\(([^)]+)\)/);
+  let a=0;
+  if(m){
+    const p = m[1].split(',').map(x=>parseFloat(x));
+    a = (p.length>3)? p[3] : (bg.startsWith('rgba')? 0:1);
+  }
+  return a<=0.05;
+}
+function probe(y){
+  const x = Math.round(window.innerWidth/2);
+  const stack = document.elementsFromPoint(x,y)||[];
+  stack.slice(0,6).forEach((el,i)=>{
+    const s = getComputedStyle(el);
+    log(`#${i}: ${el.tagName}${el.id?('#'+el.id):''}${el.className?('.'+el.className):''}  pos=${s.position} pe=${s.pointerEvents} z=${s.zIndex}`);
+    el.classList.add('hl');
+    setTimeout(()=>el.classList.remove('hl'),800);
+  });
+  const top=stack[0];
+  if(looksBlocker(top)){
+    log('⚠️ 顶层像是透明遮罩层：'+(top.className||top.id||top.tagName));
+  }else{
+    log('✅ 顶层看起来不是透明遮罩');
+  }
+}
+document.getElementById('btnProbe').onclick=()=>{ [180,260,360,460].forEach(probe); };
+
+// B. 强制穿透模式
+let clickThroughOn=false;
+document.getElementById('btnClickThrough').onclick=()=>{
+  clickThroughOn=!clickThroughOn;
+  if(clickThroughOn){
+    document.body.dataset.ct='1';
+    const style=document.createElement('style');
+    style.id='ct-style';
+    style.textContent=`
+    @media (hover:none) and (pointer:coarse){
+      .overlay, .mask, .backdrop, .intro, .cover, .hero, [class*="overlay"], [class*="mask"], [class*="backdrop"] { pointer-events:none !important; }
+      button, a, input, select, textarea, label, [role="button"], .btn, .button, .tab, .tile, .clickable { pointer-events:auto !important; }
+    }`;
+    document.head.appendChild(style);
+    log('已开启强制穿透（仅移动端选择器）');
+  }else{
+    const s=document.getElementById('ct-style'); if(s) s.remove();
+    log('已关闭强制穿透');
+  }
+};
+
+// C. 事件测试
+const zone = document.getElementById('zone');
+['pointerdown','pointerup','touchstart','touchend','click'].forEach(ev=>{
+  zone.addEventListener(ev, e=>log('事件: '+ev+' → '+(e.target.id||e.target.tagName)), {passive:false});
+});
+document.getElementById('btnTestEvents').onclick=()=>log('提示：现在去“测试区域”点击/滑动，查看上面的事件是否按顺序出现');
+
+// D. 功能检测
+document.getElementById('btnShowFeatures').onclick=()=>{
+  const sup = !!(window.HTMLDialogElement && HTMLDialogElement.prototype.showModal);
+  const pe = CSS && CSS.supports && CSS.supports('touch-action','manipulation');
+  const svh = CSS && CSS.supports && CSS.supports('height','100svh');
+  const pevt = !!window.PointerEvent;
+  log('特性: dialog.showModal='+sup+', touch-action(manipulation)='+pe+', 100svh='+svh+', PointerEvent='+pevt);
+  log('UA: '+navigator.userAgent);
+};
+
+// E. 错误捕获
+window.addEventListener('error', e=> log('JS错误: '+(e.message||e.error)), true);
+window.addEventListener('unhandledrejection', e=> log('Promise未捕获: '+e.reason), true);
+document.getElementById('btnShowErrors').onclick=()=>log('错误捕获已开启（默认就开启）。如有报错会显示在这里。');
+</script>
+</body>
+</html>
