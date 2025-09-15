@@ -2,18 +2,16 @@
 <html lang="zh-CN">
 <head>
 
-<!-- === SUPERFINAL bootstrap (early) === -->
 <script>
+// V11: log to console so we can see it in remote inspector
+console.log('[V11] mobile patch bootstrap starting');
 (function(){
-  // 1) Harden localStorage so it never throws on iOS private/quota
   try {
     const _get = localStorage.getItem.bind(localStorage);
     const _set = localStorage.setItem.bind(localStorage);
     localStorage.getItem = function(k){ try{ return _get(k); }catch(e){ return null; } };
     localStorage.setItem = function(k,v){ try{ return _set(k,v); }catch(e){ /* ignore */ } };
   } catch(e){}
-
-  // 2) Ensure LS_KEY and S exist BEFORE any other script runs
   try { if (typeof window.LS_KEY === 'undefined') window.LS_KEY = 'survival_save_v1'; } catch(e){ window.LS_KEY = 'survival_save_v1'; }
   try {
     if (typeof window.S === 'undefined') {
@@ -21,13 +19,12 @@
       window.S = raw ? JSON.parse(raw) : { pet: null };
     }
   } catch(e){ window.S = { pet: null }; }
-
-  // 3) Render placeholder: queue early calls until real one is assigned
+  // render placeholder
   let __realRender = null, __queued = false;
   Object.defineProperty(window, 'render', {
-    configurable: true, enumerable: true,
+    configurable:true, enumerable:true,
     get(){ return __realRender || function(){ __queued = true; }; },
-    set(fn){ __realRender = fn; if (__queued) { try { __realRender(); } catch(_){} } }
+    set(fn){ __realRender = fn; if (__queued) { try{ __realRender(); }catch(_){} } }
   });
 })();
 </script>
@@ -86,19 +83,24 @@
     dialog::backdrop{background:rgba(0,0,0,.55)}
   button[disabled]{opacity:.55; cursor:not-allowed; filter:grayscale(0.2);} 
 
-/* --- SUPERFINAL: Mobile robustness (keeps desktop layout) --- */
-button, .btn, [role="button"], .tab, .tile {
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  cursor: pointer;
+/* === V11 VERIFY BANNER (should be VISIBLE if this file is served) === */
+#_verify_banner{
+  position:fixed; left:0; right:0; top:0; z-index:1000000;
+  background:linear-gradient(90deg,#ffd400,#ff6a00);
+  color:#111; font:600 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, PingFang SC, sans-serif;
+  padding:10px 12px; text-align:center; box-shadow:0 2px 10px rgba(0,0,0,.25);
 }
-dialog { max-width: min(560px, 90vw); max-height: 80vh; overflow: auto; z-index: 10001; }
-dialog::backdrop { background: rgba(0,0,0,.55); }
-@supports (height:100svh){ dialog{ max-height:80svh; } }
+#_verify_banner small{opacity:.7}
+@media (prefers-color-scheme: dark){
+  #_verify_banner{ color:#000; }
+}
 
 </style>
 </head>
 <body>
+
+<div id="_verify_banner">✅ MOBILE PATCH <b>V11</b> LOADED · 如果你在手机上看不到这一条横幅，说明你线上不是这份文件。<small>（测试地址请带 ?v=v11）</small></div>
+>
 <div class="wrap">
   <h1>🧟‍♂️ 末日囤货生存 · 网页版（完整版·自带宠物）</h1>
   <div class="muted">单文件 · 本地存档 · 规则驱动（无后端）</div>
@@ -1036,121 +1038,59 @@ function resetGame(){ if(!confirm('重开？当前进度会被清空')) return; 
 render();
 </script>
 
-<!-- === SUPERFINAL bootstrap (late) === -->
 <script>
+console.log('[V11] late bootstrap');
 (function(){
-  // A) Dialog wrapper: call native showModal, fallback if it throws
-  function __dlgFallback(d){
+  // safe first render
+  let tries = 0;
+  (function tick(){
+    try{
+      if (typeof window.render === 'function'){ console.log('[V11] calling render'); window.render(); return; }
+    }catch(e){
+      console.error('[V11] render failed:', e);
+      if (e instanceof ReferenceError && tries++ < 60) return setTimeout(tick, 33);
+      return;
+    }
+    if (tries++ < 60) setTimeout(tick, 33);
+  })();
+  // dialog guard
+  var proto = window.HTMLDialogElement && HTMLDialogElement.prototype;
+  function fallback(d){
     if(!d) return;
     if(!d.hasAttribute('open')) d.setAttribute('open','');
-    var s = d.style;
-    if(getComputedStyle(d).position !== 'fixed'){ s.position='fixed'; }
-    s.left='50%'; s.top='50%'; s.transform='translate(-50%,-50%)'; s.zIndex='10001';
-    var bd = document.createElement('div');
-    bd.setAttribute('data-dlg-bd','1');
+    var s=d.style; s.position='fixed'; s.left='50%'; s.top='50%'; s.transform='translate(-50%,-50%)'; s.zIndex='10001';
+    var bd=document.createElement('div'); bd.dataset.bd='1';
     Object.assign(bd.style,{position:'fixed',inset:'0',background:'rgba(0,0,0,.55)',zIndex:'10000'});
-    bd.addEventListener('click', function(){ try{ d.close(); }catch(e){ d.removeAttribute('open'); } bd.remove(); }, {passive:true});
+    bd.addEventListener('click', function(){ try{ d.close(); }catch{ d.removeAttribute('open'); } bd.remove(); });
     document.body.appendChild(bd);
   }
-  (function wrapDialog(){
-    var proto = window.HTMLDialogElement && HTMLDialogElement.prototype;
-    if (proto && !proto.__wrapped){
-      var origShow = proto.showModal;
-      var origClose = proto.close;
-      proto.showModal = function(){
-        try{ return origShow.apply(this, arguments); }
-        catch(e){ return __dlgFallback(this); }
-      };
-      proto.close = function(){
-        try{ return origClose.apply(this, arguments); }
-        catch(e){
-          this.removeAttribute('open');
-          var bd = document.querySelector('[data-dlg-bd="1"]'); if(bd) bd.remove();
-        }
-      };
-      proto.__wrapped = true;
-    } else if (!proto){
-      // No native support: patch existing dialogs after DOM ready
-      document.addEventListener('DOMContentLoaded', function(){
-        document.querySelectorAll('dialog').forEach(function(d){
-          d.showModal = function(){ __dlgFallback(d); };
-          d.close = function(){
-            d.removeAttribute('open');
-            var bd=document.querySelector('[data-dlg-bd="1"]'); if(bd) bd.remove();
-          };
-        });
-      });
-    }
-  })();
-
-  // B) Safe first render: wait until render exists & no TDZ
-  (function safeFirstRender(){
-    let tries = 0;
-    (function tick(){
-      try {
-        if (typeof window.render === 'function') { window.render(); return; }
-      } catch (e) {
-        if (e instanceof ReferenceError && tries++ < 60) return setTimeout(tick, 33);
-        console.error('render failed:', e);
-        return;
-      }
-      if (tries++ < 60) setTimeout(tick, 33);
-    })();
-  })();
-
-  // C) Gentle touch->click: make <div onclick> reliable on mobile
+  if (proto && !proto.__v11wrapped){
+    var origShow = proto.showModal, origClose = proto.close;
+    proto.showModal = function(){ try{ return origShow.apply(this, arguments); } catch(e){ console.warn('[V11] showModal throws, fallback'); return fallback(this); } };
+    proto.close = function(){ try{ return origClose.apply(this, arguments); } catch(e){ this.removeAttribute('open'); var bd=document.querySelector('[data-bd="1"]'); if(bd) bd.remove(); } };
+    proto.__v11wrapped = true;
+  }
+  // touch->click
   if (window.PointerEvent){
     window.addEventListener('pointerup', function(e){
       if(!(e.pointerType==='touch'||e.pointerType==='pen')) return;
-      var n = e.target;
+      var n=e.target;
       while(n && n!==document.body){
-        var tag = n.tagName;
-        var clickable = /^(BUTTON|A|INPUT|SELECT|TEXTAREA|LABEL)$/.test(tag) ||
-                        (n.getAttribute && n.getAttribute('role')==='button') ||
-                        (typeof n.onclick === 'function') ||
-                        (n.hasAttribute && n.hasAttribute('onclick')) ||
-                        (/(^|\s)(btn|button|clickable|tab|tile)(\s|$)/i).test((n.className||'')+'');
+        var tag=n.tagName, cls=(n.className||'')+'';
+        var clickable=/^(BUTTON|A|INPUT|SELECT|TEXTAREA|LABEL)$/.test(tag) ||
+                      (n.getAttribute && n.getAttribute('role')==='button') ||
+                      (typeof n.onclick==='function') ||
+                      (n.hasAttribute && n.hasAttribute('onclick')) ||
+                      (/(^|\s)(btn|button|clickable|tab|tile)(\s|$)/i).test(cls);
         if (clickable && !n.disabled){
           e.preventDefault();
-          n.dispatchEvent(new MouseEvent('click', {bubbles:true, cancelable:true, view:window}));
+          n.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window}));
           break;
         }
-        n = n.parentElement;
+        n=n.parentElement;
       }
     }, {capture:true, passive:false});
   }
-
-  // D) One-shot unmask: if a near-fullscreen transparent fixed layer sits on top, disable its pointer events
-  (function unmaskOnce(){
-    var isTouch = matchMedia('(hover:none) and (pointer:coarse)').matches;
-    if(!isTouch) return;
-    function looksBlocker(el){
-      if(!el) return false;
-      var s=getComputedStyle(el);
-      if(!(s.position==='fixed'||s.position==='sticky'||s.position==='absolute')) return false;
-      if(s.pointerEvents==='none') return false;
-      var r=el.getBoundingClientRect();
-      var vw=Math.max(document.documentElement.clientWidth, window.innerWidth||0);
-      var vh=Math.max(document.documentElement.clientHeight, window.innerHeight||0);
-      if(r.width<vw*0.9 || r.height<vh*0.4) return false;
-      var bg=s.backgroundColor||'rgba(0,0,0,0)';
-      var m=bg.match(/rgba?\(([^)]+)\)/); var a=0;
-      if(m){ var p=m[1].split(',').map(parseFloat); a=(p.length>3)?p[3]:(bg.indexOf('rgba')===0?0:1); }
-      return a<=0.05;
-    }
-    function tryAt(y){
-      var x = Math.round(window.innerWidth/2);
-      var stack = document.elementsFromPoint(x,y)||[];
-      for(var i=0;i<stack.length;i++){
-        var el=stack[i];
-        if(looksBlocker(el)){ el.style.pointerEvents='none'; return true; }
-        var tag = el.tagName;
-        if(/^(BUTTON|A|INPUT|SELECT|TEXTAREA|LABEL)$/.test(tag) || (el.hasAttribute && el.hasAttribute('onclick'))) return false;
-      }
-      return false;
-    }
-    window.addEventListener('load', function(){ setTimeout(function(){ [200,300,450].forEach(tryAt); }, 250); }, {once:true});
-  })();
 })();
 </script>
 
