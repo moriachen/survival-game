@@ -1,10 +1,11 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>末日囤货生存 · 网页版（完整版·自带宠物）</title>
-  <style>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
+<title>末日囤货生存 · 网页版（完整版·自带宠物）</title>
+<style>
     :root{
       --bg:#0b0f14; --panel:#10161c; --card:#131b23; --line:#232e3a; --text:#f5f7fa; --muted:#9fb0c2;
       --accent:#ff4d4f; --ok:#14e099; --warn:#ffcc4d; --vio:#6c5ce7;
@@ -66,46 +67,39 @@ button, .btn, .tab, .tile, [role="button"]{
 </head>
 <body>
 <div class="wrap">
-  <h1>🧟‍♂️ 末日囤货生存 · 网页版（完整版·自带宠物）</h1>
-  <div class="muted">单文件 · 本地存档 · 规则驱动（无后端）</div>
-
-  <!-- 顶部 KPI -->
-  <div class="stat" id="kpi">
-    <div class="kpi"><div class="lab">日期</div><div class="num" id="dayLab"></div><div class="muted" id="hourLab"></div></div>
-    <div class="kpi"><div class="lab">资金（$）</div><div class="num" id="moneyLab"></div><div class="bar"><i id="moneyBar" style="width:50%"></i></div></div>
-    <div class="kpi"><div class="lab">体力</div><div class="num" id="staLab"></div><div class="bar"><i id="staBar" style="width:80%"></i></div></div>
-    <div class="kpi"><div class="lab">精神度</div><div class="num" id="moodLab"></div><div class="muted">0 则崩溃</div></div>
-    <div class="kpi"><div class="lab">饱食度</div><div class="num" id="hungerLab"></div><div class="muted">0 则进入饥饿倒计时</div></div>
-    <div class="kpi"><div class="lab">今日剩余工时</div><div class="num" id="hoursLeftLab"></div><div class="muted">允许透支 <input type="checkbox" id="allowOver"></div></div>
-    <div class="kpi"><div class="lab">仓库容量</div><div class="num" id="capLab"></div><div class="muted" id="capSub"></div></div>
-    <div class="kpi"><div class="lab">风险/电力</div><div class="num" id="riskLab"></div><div class="muted" id="powerLab"></div></div>
-  </div>
-
-  <!-- Tabs -->
-  <div class="tabs" id="tabs"></div>
-
-  <!-- Panels -->
-  <div id="panel"></div>
-
-  <div class="footer">© Survival Web Demo · 建议部署 GitHub Pages</div>
+<h1>🧟‍♂️ 末日囤货生存 · 网页版（完整版·自带宠物）</h1>
+<div class="muted">单文件 · 本地存档 · 规则驱动（无后端）</div>
+<!-- 顶部 KPI -->
+<div class="stat" id="kpi">
+<div class="kpi"><div class="lab">日期</div><div class="num" id="dayLab"></div><div class="muted" id="hourLab"></div></div>
+<div class="kpi"><div class="lab">资金（$）</div><div class="num" id="moneyLab"></div><div class="bar"><i id="moneyBar" style="width:50%"></i></div></div>
+<div class="kpi"><div class="lab">体力</div><div class="num" id="staLab"></div><div class="bar"><i id="staBar" style="width:80%"></i></div></div>
+<div class="kpi"><div class="lab">精神度</div><div class="num" id="moodLab"></div><div class="muted">0 则崩溃</div></div>
+<div class="kpi"><div class="lab">饱食度</div><div class="num" id="hungerLab"></div><div class="muted">0 则进入饥饿倒计时</div></div>
+<div class="kpi"><div class="lab">今日剩余工时</div><div class="num" id="hoursLeftLab"></div><div class="muted">允许透支 <input id="allowOver" type="checkbox"/></div></div>
+<div class="kpi"><div class="lab">仓库容量</div><div class="num" id="capLab"></div><div class="muted" id="capSub"></div></div>
+<div class="kpi"><div class="lab">风险/电力</div><div class="num" id="riskLab"></div><div class="muted" id="powerLab"></div></div>
 </div>
-
+<!-- Tabs -->
+<div class="tabs" id="tabs"></div>
+<!-- Panels -->
+<div id="panel"></div>
+<div class="footer">© Survival Web Demo · 建议部署 GitHub Pages</div>
+</div>
 <!-- 开局宠物选择 -->
 <dialog id="petDlg">
-  <h3>选择你的宠物</h3>
-  <p class="muted">你将自带一只宠物作为伙伴。请在猫与狗中选择其一。后续需要在超市购买相应的宠物粮。</p>
-  <div class="row">
-    <button class="btn" id="chooseDog">🐕 选择小狗</button>
-    <button class="btn" id="chooseCat">🐈 选择小猫</button>
-  </div>
+<h3>选择你的宠物</h3>
+<p class="muted">你将自带一只宠物作为伙伴。请在猫与狗中选择其一。后续需要在超市购买相应的宠物粮。</p>
+<div class="row">
+<button class="btn" id="chooseDog">🐕 选择小狗</button>
+<button class="btn" id="chooseCat">🐈 选择小猫</button>
+</div>
 </dialog>
-
 <dialog id="popDlg">
-  <h3 id="popTitle">提示</h3>
-  <div id="popText" class="muted" style="margin:8px 0 12px"></div>
-  <div class="row"><button class="btn" onclick="document.getElementById('popDlg').close()">好的</button></div>
+<h3 id="popTitle">提示</h3>
+<div class="muted" id="popText" style="margin:8px 0 12px"></div>
+<div class="row"><button class="btn" onclick="document.getElementById('popDlg').close()">好的</button></div>
 </dialog>
-
 <script>
 const LS_KEY = 'survival_web_v5_petfood';
 
@@ -1041,6 +1035,60 @@ function __unlockAudioOnce(){
 window.addEventListener('pointerdown', __unlockAudioOnce, {once:true});
 window.addEventListener('touchstart', __unlockAudioOnce, {once:true});
 
+</script>
+
+<script>
+// --- Global mobile tap delegator (v2) ---
+(function(){
+  var lastSynthAt = 0;
+  function wantsClick(el){
+    if(!el) return false;
+    // Elements inherently clickable or carrying inline handlers
+    if (el.tagName === 'BUTTON' || el.tagName === 'A' || el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') return true;
+    if (typeof el.onclick === 'function') return true;
+    if (el.hasAttribute('onclick')) return true;
+    if (el.getAttribute('role') === 'button') return true;
+    if (el.classList && (el.classList.contains('btn') || el.classList.contains('button') || el.classList.contains('tab') || el.classList.contains('tile'))) return true;
+    return false;
+  }
+  function findClickable(start){
+    var el = start;
+    while(el && el !== document.body){
+      if (wantsClick(el)) return el;
+      el = el.parentElement;
+    }
+    return null;
+  }
+  function synthClick(target){
+    var ev = new MouseEvent('click', {bubbles:true, cancelable:true, view:window});
+    target.dispatchEvent(ev);
+  }
+  function onPointerUp(e){
+    if(!(e.pointerType === 'touch' || e.pointerType === 'pen')) return;
+    var now = Date.now();
+    // If we recently synthesized a click, don't do it again
+    if (now - lastSynthAt < 120) return;
+    var el = findClickable(e.target);
+    if(el && !el.disabled){
+      // Prevent potential double-activation from subsequent synthetic "click"
+      e.preventDefault();
+      lastSynthAt = now;
+      setTimeout(function(){ synthClick(el); }, 0);
+    }
+  }
+  if (window.PointerEvent){
+    window.addEventListener('pointerup', onPointerUp, {passive:false, capture:true});
+  }else{
+    // Fallback for very old browsers
+    window.addEventListener('touchend', function(e){
+      var el = findClickable(e.target);
+      if(el && !el.disabled){
+        e.preventDefault();
+        synthClick(el);
+      }
+    }, {passive:false, capture:true});
+  }
+})();
 </script>
 </body>
 </html>
